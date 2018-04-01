@@ -26,3 +26,7 @@ Clone this component to [ESP-IDF](https://github.com/espressif/esp-idf) project 
 ```
 git submodule add https://github.com/craftmetrics/esp32-homie.git components/esp32-homie
 ```
+
+## Example
+
+https://github.com/craftmetrics/esp32-homie-example
