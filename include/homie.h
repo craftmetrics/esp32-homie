@@ -13,6 +13,8 @@
 #define HOMIE_MAX_FIRMWARE_NAME_LEN (32)
 #define HOMIE_MAX_FIRMWARE_VERSION_LEN (8)
 
+
+
 typedef struct {
     char mqtt_uri[HOMIE_MAX_MQTT_URI_LEN];
     char mqtt_username[HOMIE_MAX_MQTT_USERNAME_LEN];
@@ -23,7 +25,7 @@ typedef struct {
     char firmware_name[HOMIE_MAX_FIRMWARE_NAME_LEN];
     char firmware_version[HOMIE_MAX_FIRMWARE_VERSION_LEN];
     bool ota_enabled;
-    func msg_handler(sp_mqtt_event_handle_t event)
+    mqtt_event_callback_t msg_handler;
 } homie_config_t;
 
 void homie_init(homie_config_t *config);

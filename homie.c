@@ -22,8 +22,8 @@ static bool _starts_with(const char *pre, const char *str, int lenstr)
 
 static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
 {
-    ESP_LOGI("T=%.*s\r\n", event->topic_len, event->topic);
-    ESP_LOGI("D=%.*s\r\n", event->data_len, event->data);
+    printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
+    printf("DATA=%.*s\r\n", event->data_len, event->data);
 
     // Check if it is reboot command
     char topic[HOMIE_MAX_TOPIC_LEN];
@@ -89,14 +89,14 @@ extern const uint8_t server_pem_end[]   asm("_binary_server_pem_end");
 static void mqtt_app_start(void)
 {
     esp_mqtt_client_config_t mqtt_cfg = {
-        .uri = config.mqtt_uri,
-        .username = config.mqtt_username,
-        .password = config.mqtt_password,
         .event_handle = mqtt_event_handler,
         .lwt_msg = "false",
         .lwt_retain = 1,
         //.cert_pem = (const char *)server_pem_start,
     };
+    strncpy(mqtt_cfg.uri, config->mqtt_uri, MQTT_MAX_HOST_LEN);
+    strncpy(mqtt_cfg.username, config->mqtt_username, MQTT_MAX_USERNAME_LEN);
+    strncpy(mqtt_cfg.password, config->mqtt_password, MQTT_MAX_PASSWORD_LEN);
     homie_mktopic(mqtt_cfg.lwt_topic, "$online");
 
     client = esp_mqtt_client_init(&mqtt_cfg);
@@ -168,19 +168,20 @@ static void _get_ip(char * ip_string)
     );
 }
 
-static void _get_mac(char * mac_string)
+static void _get_mac(char * mac_string, bool sep)
 {
     uint8_t mac[6];
     esp_efuse_mac_get_default(mac);
 
-    sprintf(mac_string, "%X:%X:%X:%X:%X:%X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    if (sep) sprintf(mac_string, "%X:%X:%X:%X:%X:%X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    else sprintf(mac_string, "%x%x%x%x%x%x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
 static void homie_connected()
 {
     char mac_address[18];
     char ip_address[16];
-    _get_mac(mac_address);
+    _get_mac(mac_address, true);
     _get_ip(ip_address);
 
     homie_publish("$homie", "2.0.1");
@@ -222,6 +223,9 @@ static void homie_task(void *pvParameter)
 void homie_init(homie_config_t *passed_config)
 {
     config = passed_config;
+
+    // If device_id is blank, generate one based off the mac
+    if (!config->device_id[0]) _get_mac(config->device_id, false);
 
     mqtt_app_start();
     xTaskCreate(&homie_task, "homie_task", 8192, NULL, 5, NULL);
