@@ -5,6 +5,7 @@
 #include "freertos/event_groups.h"
 
 #include "homie.h"
+#include "ota.h"
 
 static const char* TAG = "HOMIE";
 
@@ -34,10 +35,13 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     }
 
     // Check if it is a OTA update
-    homie_mktopic(topic, "$implementation/ota/firmware");
+    homie_mktopic(topic, "$implementation/ota/url");
     if (_starts_with(topic, event->topic, event->topic_len)) {
-        ESP_LOGI(TAG, "OTA Not Implemented");
-        homie_publish("$implementation/ota/status", "501");
+        char * url = malloc(event->data_len + 1);
+        strncpy(url, event->data, event->data_len);
+        url[event->data_len] = '\0';
+        // FIXME: ensure we can't start multiple
+        ota_init(url);
         return;
     }
 
@@ -92,6 +96,7 @@ static void mqtt_app_start(void)
         .event_handle = mqtt_event_handler,
         .lwt_msg = "false",
         .lwt_retain = 1,
+        .keepalive = 15,
         //.cert_pem = (const char *)server_pem_start,
     };
     strncpy(mqtt_cfg.uri, config->mqtt_uri, MQTT_MAX_HOST_LEN);
@@ -199,7 +204,7 @@ static void homie_connected()
     homie_publish_bool("$implementation/ota/enabled", config->ota_enabled);
 
     homie_subscribe("$implementation/reboot");
-    if (config->ota_enabled) homie_subscribe("$implementation/ota/firmware/#");
+    if (config->ota_enabled) homie_subscribe("$implementation/ota/url/#");
 
 }
 
