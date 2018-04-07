@@ -1,3 +1,5 @@
+#include <stdarg.h>
+
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
@@ -13,7 +15,7 @@ static esp_mqtt_client_handle_t client;
 homie_config_t * config;
 
 static void homie_connected();
-static void homie_mktopic(char * topic, char * subtopic);
+static void homie_mktopic(char * topic, const char * subtopic);
 
 static bool _starts_with(const char *pre, const char *str, int lenstr)
 {
@@ -108,12 +110,12 @@ static void mqtt_app_start(void)
     esp_mqtt_client_start(client);
 }
 
-static void homie_mktopic(char * topic, char * subtopic)
+static void homie_mktopic(char * topic, const char * subtopic)
 {
     snprintf(topic, HOMIE_MAX_TOPIC_LEN, "%s/%s/%s", config->base_topic, config->device_id, subtopic);
 }
 
-void homie_subscribe(char * subtopic)
+void homie_subscribe(const char * subtopic)
 {
     int msg_id;
     char topic[HOMIE_MAX_TOPIC_LEN];
@@ -123,7 +125,7 @@ void homie_subscribe(char * subtopic)
     ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 }
 
-void homie_publish(char * subtopic, char * payload)
+void homie_publish(const char * subtopic, const char * payload)
 {
     int msg_id;
     char topic[HOMIE_MAX_TOPIC_LEN];
@@ -133,14 +135,24 @@ void homie_publish(char * subtopic, char * payload)
     ESP_LOGI(TAG, "%s: %s => msg_id=%d", topic, payload, msg_id);
 }
 
-void homie_publish_int(char * subtopic, int payload)
+void homie_publishf(const char * subtopic, const char * format, ...)
+{
+    char payload_string[64];
+    va_list argptr;
+    va_start(argptr, format);
+    vsnprintf(payload_string, 64, format, argptr);
+    va_end(argptr);
+    homie_publish(subtopic, payload_string);
+}
+
+void homie_publish_int(const char * subtopic, int payload)
 {
     char payload_string[16];
     snprintf(payload_string, 16, "%d", payload);
     homie_publish(subtopic, payload_string);
 }
 
-void homie_publish_bool(char * subtopic, bool payload)
+void homie_publish_bool(const char * subtopic, bool payload)
 {
     homie_publish(subtopic, payload ? "true" : "false");
 }
