@@ -34,7 +34,7 @@ int download_callback(request_t *req, char *data, int len)
         tmp = req_list_get_key(req->response->header, "Content-Length");
         if (!tmp) {
             ESP_LOGE(TAG, "Content-Length not found");
-            homie_publish("$implementation/ota/status", "500 no Content-Length");
+            homie_publish("$implementation/ota/status", 0, 1, "500 no Content-Length");
             return -1;
         }
         total_len = atoi(tmp->value);
@@ -44,7 +44,7 @@ int download_callback(request_t *req, char *data, int len)
         update_partition = esp_ota_get_next_update_partition(NULL);
         if (update_partition == NULL) {
             ESP_LOGE(TAG, "Invalid or no OTA data partition found");
-            homie_publish("$implementation/ota/status", "500 no ota partition");
+            homie_publish("$implementation/ota/status", 0, 1, "500 no ota partition");
             return -1;
         }
         ESP_LOGI(TAG, "Writing to partition type %d subtype %d (offset 0x%08x)",
@@ -53,7 +53,7 @@ int download_callback(request_t *req, char *data, int len)
         err = esp_ota_begin(update_partition, total_len, &update_handle);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "esp_ota_begin error: %d", err);
-            homie_publishf("$implementation/ota/status", "500 esp_ota_begin=%d", err);
+            homie_publishf("$implementation/ota/status", 0, 1, "500 esp_ota_begin=%d", err);
             return -1;
         }
     }
@@ -61,7 +61,7 @@ int download_callback(request_t *req, char *data, int len)
     err = esp_ota_write(update_handle, (const void *)data, len);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "esp_ota_write error: %d", err);
-        homie_publishf("$implementation/ota/status", "500 esp_ota_write=%d", err);
+        homie_publishf("$implementation/ota/status", 0, 1, "500 esp_ota_write=%d", err);
         return -1;
     }
     remaining_len -= len;
@@ -69,24 +69,24 @@ int download_callback(request_t *req, char *data, int len)
     // Send status message to indicate OTA progress
     char buf[32];
     sprintf(buf, "206 %d/%d", total_len-remaining_len, total_len);
-    homie_publish("$implementation/ota/status", buf);
+    homie_publish("$implementation/ota/status", 0, 0, buf);
 
     if (remaining_len <= 0) {
         err = esp_ota_end(update_handle);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "esp_ota_end error: %d", err);
-            homie_publishf("$implementation/ota/status", "500 esp_ota_end=%d", err);
+            homie_publishf("$implementation/ota/status", 0, 1, "500 esp_ota_end=%d", err);
             return -1;
         }
         err = esp_ota_set_boot_partition(update_partition);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "esp_ota_set_boot_partition error: %d", err);
-            homie_publishf("$implementation/ota/status", "500 esp_ota_set_boot_partition=%d", err);
+            homie_publishf("$implementation/ota/status", 0, 1, "500 esp_ota_set_boot_partition=%d", err);
             return -1;
         }
         ESP_LOGI(TAG, "OTA Update Complete - rebooting");
         // Send status message to indicate that OTA is complete
-        homie_publish("$implementation/ota/status", "200");
+        homie_publish("$implementation/ota/status", 0, 1, "200");
         vTaskDelay(3000/portTICK_PERIOD_MS);
         esp_restart();
     }
@@ -111,7 +111,7 @@ static void ota_task(void *pvParameter)
     req_clean(req);
 
     // Report http-related error
-    if (status != 200) homie_publish_int("$implementation/ota/status", status);
+    if (status != 200) homie_publish_int("$implementation/ota/status", 0, 1, status);
 
     ota_deinit(url);
 }
@@ -126,7 +126,7 @@ void ota_init(char * url)
     // Ensure OTA is configured
     if ((configured == NULL) || (configured == NULL)) {
         ESP_LOGE(TAG, "OTA partitions not configured");
-        homie_publish("$implementation/ota/status", "500 no ota partitions");
+        homie_publish("$implementation/ota/status", 0, 1, "500 no ota partitions");
         free(url);
         return;
     }

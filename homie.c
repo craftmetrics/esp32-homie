@@ -125,36 +125,36 @@ void homie_subscribe(const char * subtopic)
     ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 }
 
-void homie_publish(const char * subtopic, const char * payload)
+void homie_publish(const char * subtopic, int qos, int retain, const char * payload)
 {
     int msg_id;
     char topic[HOMIE_MAX_TOPIC_LEN];
     homie_mktopic(topic, subtopic);
 
-    msg_id = esp_mqtt_client_publish(client, topic, payload, 0, 0, 1);
+    msg_id = esp_mqtt_client_publish(client, topic, payload, 0, qos, retain);
     ESP_LOGI(TAG, "%s: %s => msg_id=%d", topic, payload, msg_id);
 }
 
-void homie_publishf(const char * subtopic, const char * format, ...)
+void homie_publishf(const char * subtopic, int qos, int retain, const char * format, ...)
 {
     char payload_string[64];
     va_list argptr;
     va_start(argptr, format);
     vsnprintf(payload_string, 64, format, argptr);
     va_end(argptr);
-    homie_publish(subtopic, payload_string);
+    homie_publish(subtopic, qos, retain, payload_string);
 }
 
-void homie_publish_int(const char * subtopic, int payload)
+void homie_publish_int(const char * subtopic, int qos, int retain, int payload)
 {
     char payload_string[16];
     snprintf(payload_string, 16, "%d", payload);
-    homie_publish(subtopic, payload_string);
+    homie_publish(subtopic, qos, retain, payload_string);
 }
 
-void homie_publish_bool(const char * subtopic, bool payload)
+void homie_publish_bool(const char * subtopic, int qos, int retain, bool payload)
 {
-    homie_publish(subtopic, payload ? "true" : "false");
+    homie_publish(subtopic, qos, retain, payload ? "true" : "false");
 }
 
 static int _clamp(int n, int lower, int upper) {
@@ -201,19 +201,19 @@ static void homie_connected()
     _get_mac(mac_address, true);
     _get_ip(ip_address);
 
-    homie_publish("$homie", "2.0.1");
-    homie_publish("$online", "true");
-    homie_publish("$name", config->device_name);
-    homie_publish("$localip", ip_address);
-    homie_publish("$mac", mac_address);
-    homie_publish("$fw/name", config->firmware_name);
-    homie_publish("$fw/version", config->firmware_version);
-    homie_publish("$nodes", ""); // FIXME: needs to be extendible
-    homie_publish("$implementation", "esp32-idf");
-    homie_publish("$implementation/version", "dev");
-    homie_publish("$stats", "uptime,rssi,signal,freeheap"); // FIXME: needs to be extendible
-    homie_publish("$stats/interval", "30");
-    homie_publish_bool("$implementation/ota/enabled", config->ota_enabled);
+    homie_publish("$homie", 0, 1, "2.0.1");
+    homie_publish("$online", 0, 1, "true");
+    homie_publish("$name", 0, 1, config->device_name);
+    homie_publish("$localip", 0, 1, ip_address);
+    homie_publish("$mac", 0, 1, mac_address);
+    homie_publish("$fw/name", 0, 1, config->firmware_name);
+    homie_publish("$fw/version", 0, 1, config->firmware_version);
+    homie_publish("$nodes", 0, 1, ""); // FIXME: needs to be extendible
+    homie_publish("$implementation", 0, 1, "esp32-idf");
+    homie_publish("$implementation/version", 0, 1, "dev");
+    homie_publish("$stats", 0, 1, "uptime,rssi,signal,freeheap"); // FIXME: needs to be extendible
+    homie_publish("$stats/interval", 0, 1, "30");
+    homie_publish_bool("$implementation/ota/enabled", 0, 1, config->ota_enabled);
 
     homie_subscribe("$implementation/reboot");
     if (config->ota_enabled) homie_subscribe("$implementation/ota/url/#");
@@ -223,15 +223,15 @@ static void homie_connected()
 static void homie_task(void *pvParameter)
 {
     while (1) {
-        homie_publish_int("$stats/uptime", esp_timer_get_time()/1000000);
+        homie_publish_int("$stats/uptime", 0, 0, esp_timer_get_time()/1000000);
 
         int rssi = _get_wifi_rssi();
-        homie_publish_int("$stats/rssi", rssi);
+        homie_publish_int("$stats/rssi", 0, 0, rssi);
 
         // Translate to "signal" percentage, assuming RSSI range of (-100,-50)
-        homie_publish_int("$stats/signal", _clamp((rssi+100)*2, 0, 100));
+        homie_publish_int("$stats/signal", 0, 0, _clamp((rssi+100)*2, 0, 100));
 
-        homie_publish_int("$stats/freeheap", esp_get_free_heap_size());
+        homie_publish_int("$stats/freeheap", 0, 0, esp_get_free_heap_size());
 
         vTaskDelay(30000/portTICK_PERIOD_MS);
     }
