@@ -15,7 +15,6 @@ static esp_mqtt_client_handle_t client;
 homie_config_t * config;
 
 static void homie_connected();
-static void homie_mktopic(char * topic, const char * subtopic);
 
 static bool _starts_with(const char *pre, const char *str, int lenstr)
 {
@@ -48,8 +47,21 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     }
 
     // Call the application's handler
+    homie_mktopic(topic, "");
     if (config->msg_handler) {
-        config->msg_handler(event);
+        int subtopic_len = event->topic_len - strlen(topic);
+        char * subtopic = malloc(subtopic_len + 1);
+        strncpy(subtopic, event->topic + strlen(topic), subtopic_len);
+        subtopic[subtopic_len] = '\0';
+
+        char * payload = malloc(event->data_len + 1);
+        strncpy(payload, event->data, event->data_len);
+        payload[event->data_len] = '\0';
+
+        config->msg_handler(subtopic, payload);
+
+        free(subtopic);
+        free(payload);
     }
 }
 
@@ -59,6 +71,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
         case MQTT_EVENT_CONNECTED:
             ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
             homie_connected();
+            if (config->connected_handler) config->connected_handler();
             break;
 
         case MQTT_EVENT_DISCONNECTED:
@@ -110,8 +123,7 @@ static void mqtt_app_start(void)
     esp_mqtt_client_start(client);
 }
 
-static void homie_mktopic(char * topic, const char * subtopic)
-{
+void homie_mktopic(char * topic, const char * subtopic) {
     snprintf(topic, HOMIE_MAX_TOPIC_LEN, "%s/%s/%s", config->base_topic, config->device_id, subtopic);
 }
 
