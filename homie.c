@@ -114,6 +114,7 @@ static void mqtt_app_start(void)
         .keepalive = 15,
         //.cert_pem = (const char *)server_pem_start,
     };
+    strncpy(mqtt_cfg.client_id, config->client_id, MQTT_MAX_CLIENT_LEN);
     strncpy(mqtt_cfg.uri, config->mqtt_uri, MQTT_MAX_HOST_LEN);
     strncpy(mqtt_cfg.username, config->mqtt_username, MQTT_MAX_USERNAME_LEN);
     strncpy(mqtt_cfg.password, config->mqtt_password, MQTT_MAX_PASSWORD_LEN);
@@ -124,7 +125,7 @@ static void mqtt_app_start(void)
 }
 
 void homie_mktopic(char * topic, const char * subtopic) {
-    snprintf(topic, HOMIE_MAX_TOPIC_LEN, "%s/%s/%s", config->base_topic, config->device_id, subtopic);
+    snprintf(topic, HOMIE_MAX_TOPIC_LEN, "%s/%s/%s", config->base_topic, config->client_id, subtopic);
 }
 
 void homie_subscribe(const char * subtopic)
@@ -253,8 +254,8 @@ void homie_init(homie_config_t *passed_config)
 {
     config = passed_config;
 
-    // If device_id is blank, generate one based off the mac
-    if (!config->device_id[0]) _get_mac(config->device_id, false);
+    // If client_id is blank, generate one based off the mac
+    if (!config->client_id[0]) _get_mac(config->client_id, false);
 
     mqtt_app_start();
     xTaskCreate(&homie_task, "homie_task", 8192, NULL, 5, NULL);
