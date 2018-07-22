@@ -22,6 +22,15 @@ static bool _starts_with(const char *pre, const char *str, int lenstr)
     return lenstr < lenpre ? false : strncmp(pre, str, lenpre) == 0;
 }
 
+#define REMOTE_LOGGING_MAX_PAYLOAD_LEN 1024
+static int _homie_logger( const char *str, va_list l ) {
+    char buf[REMOTE_LOGGING_MAX_PAYLOAD_LEN];
+
+    vsnprintf(buf, REMOTE_LOGGING_MAX_PAYLOAD_LEN, str, l);
+    homie_publish("log", 1, 0, buf);
+    return vprintf( str, l );
+}
+
 static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
 {
     printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
@@ -33,6 +42,22 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     if ((strncmp(topic, event->topic, event->topic_len) == 0) && (strncmp("true", event->data, event->data_len) == 0)) {
         ESP_LOGI(TAG, "Rebooting...");
         esp_restart_noos();
+        return;
+    }
+
+    // Check if it is enable remote console
+    homie_mktopic(topic, "$implementation/logging");
+    if (strncmp(topic, event->topic, event->topic_len) == 0) {
+        if (strncmp("true", event->data, event->data_len) == 0) {
+            ESP_LOGI(TAG, "Enable remote logging");
+            esp_log_set_vprintf(_homie_logger);
+            ESP_LOGI(TAG, "Remote logging enabled");
+        } else {
+            ESP_LOGI(TAG, "Disable remote logging");
+            esp_log_set_vprintf(vprintf);
+            ESP_LOGI(TAG, "Remote logging disabled");
+        }
+        return;
     }
 
     // Check if it is a OTA update
@@ -87,7 +112,8 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
             break;
 
         case MQTT_EVENT_PUBLISHED:
-            ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+            // Disabled to avoid triggering circular events with remote logging
+            //ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
             break;
 
         case MQTT_EVENT_DATA:
@@ -140,12 +166,11 @@ void homie_subscribe(const char * subtopic)
 
 void homie_publish(const char * subtopic, int qos, int retain, const char * payload)
 {
-    int msg_id;
+    //int msg_id;
     char topic[HOMIE_MAX_TOPIC_LEN];
     homie_mktopic(topic, subtopic);
 
-    msg_id = esp_mqtt_client_publish(client, topic, payload, 0, qos, retain);
-    ESP_LOGI(TAG, "%s: %s => msg_id=%d", topic, payload, msg_id);
+    esp_mqtt_client_publish(client, topic, payload, 0, qos, retain);
 }
 
 void homie_publishf(const char * subtopic, int qos, int retain, const char * format, ...)
@@ -229,6 +254,7 @@ static void homie_connected()
     homie_publish_bool("$implementation/ota/enabled", 0, 1, config->ota_enabled);
 
     homie_subscribe("$implementation/reboot");
+    homie_subscribe("$implementation/logging");
     if (config->ota_enabled) homie_subscribe("$implementation/ota/url/#");
 
 }
