@@ -39,3 +39,11 @@ OTA works according to the following scheme:
 1. The initiating entity publishes a message to `./$implementation/ota/url` containing a URL to the new firmware
 1. If an error is encountered, the device publishes a message to `./$implementation/ota/status`
 1. If it is successful, the device reboots into the new firmware
+
+## Remote Logging
+
+When remote logging is enabled, all calls to ESP_LOG*() are published to `./log`.
+
+To enable remote logging, send `true` to `./$implementation/logging`. To disable, send `false`.
+
+Note that the default logger uses ANSI terminal colors in its log output, you may want to set `CONFIG_LOG_COLORS=n` in `sdkconfig` to disable this.
