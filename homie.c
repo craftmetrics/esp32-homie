@@ -4,6 +4,7 @@
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_event_loop.h"
+#include "esp_ota_ops.h"
 #include "freertos/event_groups.h"
 
 #include "homie.h"
@@ -254,9 +255,24 @@ static void homie_connected()
     homie_publish("$nodes", 0, 1, ""); // FIXME: needs to be extendible
     homie_publish("$implementation", 0, 1, "esp32-idf");
     homie_publish("$implementation/version", 0, 1, "dev");
+
     homie_publish("$stats", 0, 1, "uptime,rssi,signal,freeheap"); // FIXME: needs to be extendible
     homie_publish("$stats/interval", 0, 1, "30");
     homie_publish_bool("$implementation/ota/enabled", 0, 1, config->ota_enabled);
+
+    const esp_partition_t *running_partition = esp_ota_get_running_partition();
+    if (running_partition != NULL) {
+        homie_publishf("$implementation/ota/running", 0, 1, "0x%08x", running_partition->address);
+    } else {
+        homie_publishf("$implementation/ota/running", 0, 1, "NULL");
+    }
+
+    const esp_partition_t *boot_partition = esp_ota_get_boot_partition();
+    if (boot_partition != NULL) {
+        homie_publishf("$implementation/ota/boot", 0, 1, "0x%08x", boot_partition->address);
+    } else {
+        homie_publishf("$implementation/ota/boot", 0, 1, "NULL");
+    }
 
     homie_subscribe("$implementation/reboot");
     homie_subscribe("$implementation/logging");
