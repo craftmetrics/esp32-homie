@@ -6,6 +6,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "math.h"
 
 #include "esp_wifi.h"
 #include "esp_ota_ops.h"
@@ -15,9 +16,17 @@
 
 #define TAG "HOMIE_OTA"
 
-static void ota_deinit(char * url)
+typedef struct {
+    char * url;
+    void (*status_handler)(int);
+} homie_ota_config_t;
+static homie_ota_config_t * config = NULL;
+
+static void ota_deinit()
 {
-    free(url);
+    free(config->url);
+    free(config);
+    config = NULL;
     vTaskDelete(NULL);
 }
 
@@ -25,6 +34,8 @@ int download_callback(request_t *req, char *data, int len)
 {
     esp_err_t err;
     req_list_t *tmp;
+
+    // FIXME: After a failed HTTP request, this static state is not cleaned up
     static int total_len = -1;
     static int remaining_len;
     static esp_ota_handle_t update_handle;
@@ -56,6 +67,11 @@ int download_callback(request_t *req, char *data, int len)
             homie_publishf("$implementation/ota/status", 1, 0, "500 esp_ota_begin=%d", err);
             return -1;
         }
+
+        // Called once with `0` to let application know that OTA has been initiated
+        if (config->status_handler) {
+            config->status_handler(0);
+        }
     }
 
     err = esp_ota_write(update_handle, (const void *)data, len);
@@ -69,7 +85,13 @@ int download_callback(request_t *req, char *data, int len)
     // Send status message to indicate OTA progress
     char buf[32];
     sprintf(buf, "206 %d/%d", total_len-remaining_len, total_len);
+    ESP_LOGI(TAG, "%s", buf);
     homie_publish("$implementation/ota/status", 1, 0, buf);
+
+    // Called with non-zero values periodically, indicating the percentage complete
+    if (config->status_handler) {
+        config->status_handler(ceilf((float)(total_len-remaining_len)*100./total_len));
+    }
 
     if (remaining_len <= 0) {
         err = esp_ota_end(update_handle);
@@ -96,13 +118,11 @@ int download_callback(request_t *req, char *data, int len)
 
 static void ota_task(void *pvParameter)
 {
-    char * url = (char *)pvParameter;
-
-    ESP_LOGI(TAG, "Downloading %s", url);
+    ESP_LOGI(TAG, "Downloading %s", config->url);
 
     request_t *req;
     int status;
-    req = req_new(url);
+    req = req_new(config->url);
     req_setopt(req, REQ_FUNC_DOWNLOAD_CB, download_callback);
     req_setopt(req, REQ_SET_HEADER, "User-Agent: esp32-homie OTA");
 
@@ -113,10 +133,10 @@ static void ota_task(void *pvParameter)
     // Report http-related error
     if (status != 200) homie_publish_int("$implementation/ota/status", 1, 0, status);
 
-    ota_deinit(url);
+    ota_deinit();
 }
 
-void ota_init(char * url)
+void ota_init(char * url, void (*status_handler)(int))
 {
     ESP_LOGI(TAG, "Initiating OTA");
 
@@ -140,6 +160,18 @@ void ota_init(char * url)
     ESP_LOGI(TAG, "Running partition type %d subtype %d (offset 0x%08x)",
              running->type, running->subtype, running->address);
 
+    // Ensure we can't start multiple
+    if (config != NULL) {
+        ESP_LOGE(TAG, "OTA already initiated (0x%x)", (unsigned int)config);
+        homie_publish("$implementation/ota/status", 1, 0, "500 ota already initiated");
+        free(url);
+        return;
+    }
+
+    config = calloc(1, sizeof(homie_ota_config_t));
+    config->url = url;
+    config->status_handler = status_handler;
+
     // Begin OTA task
-    xTaskCreate(&ota_task, "ota_task", 8192, url, 5, NULL);
+    xTaskCreate(&ota_task, "ota_task", 8192, NULL, 5, NULL);
 }

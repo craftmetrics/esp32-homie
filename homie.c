@@ -13,7 +13,7 @@
 static const char* TAG = "HOMIE";
 
 static esp_mqtt_client_handle_t client;
-homie_config_t * config;
+static homie_config_t * config;
 
 static void homie_connected();
 
@@ -67,8 +67,7 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
         char * url = malloc(event->data_len + 1);
         strncpy(url, event->data, event->data_len);
         url[event->data_len] = '\0';
-        // FIXME: ensure we can't start multiple
-        ota_init(url);
+        ota_init(url, config->ota_status_handler);
         return;
     }
 
