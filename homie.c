@@ -133,18 +133,23 @@ extern const uint8_t server_pem_end[]   asm("_binary_server_pem_end");
 
 static void mqtt_app_start(void)
 {
+    char * lwt_topic = malloc(HOMIE_MAX_TOPIC_LEN);
+    homie_mktopic(lwt_topic, "$online");
+
     esp_mqtt_client_config_t mqtt_cfg = {
+        .client_id = config->client_id,
+        .uri = config->mqtt_uri,
+        .username = config->mqtt_username,
+        .password = config->mqtt_password,
+
         .event_handle = mqtt_event_handler,
         .lwt_msg = "false",
         .lwt_retain = 1,
+        .lwt_topic = lwt_topic,
         .keepalive = 15,
         //.cert_pem = (const char *)server_pem_start,
     };
-    strncpy(mqtt_cfg.client_id, config->client_id, MQTT_MAX_CLIENT_LEN);
-    strncpy(mqtt_cfg.uri, config->mqtt_uri, MQTT_MAX_HOST_LEN);
-    strncpy(mqtt_cfg.username, config->mqtt_username, MQTT_MAX_USERNAME_LEN);
-    strncpy(mqtt_cfg.password, config->mqtt_password, MQTT_MAX_PASSWORD_LEN);
-    homie_mktopic(mqtt_cfg.lwt_topic, "$online");
+
 
     client = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_start(client);
