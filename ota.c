@@ -67,9 +67,9 @@ int download_callback(request_t *req, char *data, int len)
     remaining_len -= len;
 
     // Send status message to indicate OTA progress
-    char buf[32];
-    sprintf(buf, "206 %d/%d", total_len-remaining_len, total_len);
-    homie_publish("$implementation/ota/status", 1, 0, buf);
+    //char buf[32];
+    //sprintf(buf, "206 %d/%d", total_len-remaining_len, total_len);
+    //homie_publish("$implementation/ota/status", 1, 0, buf);
 
     if (remaining_len <= 0) {
         err = esp_ota_end(update_handle);
