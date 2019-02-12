@@ -1,3 +1,5 @@
+#ifndef CM_ESP32_HOMIE_H
+#define CM_ESP32_HOMIE_H
 
 #include "mqtt_client.h"
 
@@ -37,3 +39,5 @@ void homie_publishf(const char * subtopic, int qos, int retain, const char * for
 void homie_publish_int(const char * subtopic, int qos, int retain, const int payload);
 void homie_publish_bool(const char * subtopic, int qos, int retain, const bool payload);
 void homie_mktopic(char * topic, const char * subtopic);
+
+#endif // CM_ESP32_HOMIE_H
