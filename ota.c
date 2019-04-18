@@ -152,6 +152,7 @@ static void ota_task(void *pvParameter)
     esp_http_client_config_t http_config = {
         .url = config->url,
         .event_handler = http_event_handler,
+        .h_transport_type = HTTP_TRANSPORT_OVER_TCP,
     };
 
     esp_http_client_handle_t client = esp_http_client_init(&http_config);
