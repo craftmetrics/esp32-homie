@@ -17,8 +17,8 @@ I believe a minimalist library is a better fit for the ESP-IDF ecosystem rather 
 
 ## Dependencies
 
+ * ESP IDF 3.2.0
  * https://github.com/tuanpmt/espmqtt
- * https://github.com/tuanpmt/esp-request
 
 ## How to use
 

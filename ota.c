@@ -11,7 +11,7 @@
 #include "esp_wifi.h"
 #include "esp_ota_ops.h"
 #include "esp_log.h"
-#include "esp_request.h"
+#include "esp_http_client.h"
 #include "homie.h"
 
 #define TAG "HOMIE_OTA"
@@ -30,10 +30,9 @@ static void ota_deinit()
     vTaskDelete(NULL);
 }
 
-int download_callback(request_t *req, char *data, int len)
+int download_callback(esp_http_client_handle_t client, char *data, int len)
 {
     esp_err_t err;
-    req_list_t *tmp;
 
     // FIXME: After a failed HTTP request, this static state is not cleaned up
     static int total_len = -1;
@@ -42,13 +41,13 @@ int download_callback(request_t *req, char *data, int len)
     static const esp_partition_t *update_partition;
 
     if (total_len == -1) {
-        tmp = req_list_get_key(req->response->header, "Content-Length");
+        int tmp = esp_http_client_get_content_length(client);
         if (!tmp) {
             ESP_LOGE(TAG, "Content-Length not found");
             homie_publish("$implementation/ota/status", 1, 0, "500 no Content-Length");
             return -1;
         }
-        total_len = atoi(tmp->value);
+        total_len = tmp;
         remaining_len = total_len;
         ESP_LOGI(TAG, "Downloading %d bytes...", total_len);
 
@@ -116,19 +115,59 @@ int download_callback(request_t *req, char *data, int len)
     return 0;
 }
 
+esp_err_t http_event_handler(esp_http_client_event_t *evt)
+{
+    switch(evt->event_id) {
+        case HTTP_EVENT_ERROR:
+            ESP_LOGD(TAG, "HTTP_EVENT_ERROR");
+            break;
+        case HTTP_EVENT_ON_CONNECTED:
+            ESP_LOGD(TAG, "HTTP_EVENT_ON_CONNECTED");
+            break;
+        case HTTP_EVENT_HEADER_SENT:
+            ESP_LOGD(TAG, "HTTP_EVENT_HEADER_SENT");
+            break;
+        case HTTP_EVENT_ON_HEADER:
+            ESP_LOGD(TAG, "HTTP_EVENT_ON_HEADER, key=%s, value=%s", evt->header_key, evt->header_value);
+            break;
+        case HTTP_EVENT_ON_DATA:
+            ESP_LOGD(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
+            download_callback(evt->client, (char *)evt->data, evt->data_len);
+
+            break;
+        case HTTP_EVENT_ON_FINISH:
+            ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
+            break;
+        case HTTP_EVENT_DISCONNECTED:
+            ESP_LOGD(TAG, "HTTP_EVENT_DISCONNECTED");
+            break;
+    }
+    return ESP_OK;
+}
+
 static void ota_task(void *pvParameter)
 {
     ESP_LOGI(TAG, "Downloading %s", config->url);
 
-    request_t *req;
-    int status;
-    req = req_new(config->url);
-    req_setopt(req, REQ_FUNC_DOWNLOAD_CB, download_callback);
-    req_setopt(req, REQ_SET_HEADER, "User-Agent: esp32-homie OTA");
+    esp_http_client_config_t http_config = {
+        .url = config->url,
+        .event_handler = http_event_handler,
+    };
 
-    status = req_perform(req);
-    ESP_LOGI(TAG, "req_perform returned %d", status);
-    req_clean(req);
+    esp_http_client_handle_t client = esp_http_client_init(&http_config);
+    esp_err_t err = esp_http_client_perform(client);
+
+    int status = esp_http_client_get_status_code(client);
+
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "GET Status = %d, content_length = %d",
+                status,
+                esp_http_client_get_content_length(client));
+    } else {
+        ESP_LOGE(TAG, "GET request failed: %d", err);
+    }
+
+    esp_http_client_cleanup(client);
 
     // Report http-related error
     if (status != 200) homie_publish_int("$implementation/ota/status", 1, 0, status);

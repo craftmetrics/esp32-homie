@@ -42,7 +42,7 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     homie_mktopic(topic, "$implementation/reboot");
     if ((strncmp(topic, event->topic, event->topic_len) == 0) && (strncmp("true", event->data, event->data_len) == 0)) {
         ESP_LOGI(TAG, "Rebooting...");
-        esp_restart_noos();
+        esp_restart();
         return;
     }
 
