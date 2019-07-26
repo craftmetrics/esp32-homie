@@ -15,9 +15,8 @@
 #define HOMIE_MAX_FIRMWARE_NAME_LEN (32)
 #define HOMIE_MAX_FIRMWARE_VERSION_LEN (8)
 
-
-
-typedef struct {
+typedef struct
+{
     char mqtt_uri[HOMIE_MAX_MQTT_URI_LEN];
     char mqtt_username[HOMIE_MAX_MQTT_USERNAME_LEN];
     char mqtt_password[HOMIE_MAX_MQTT_PASSWORD_LEN];
@@ -33,11 +32,11 @@ typedef struct {
 } homie_config_t;
 
 void homie_init(homie_config_t *config);
-void homie_subscribe(const char * subtopic);
-void homie_publish(const char * subtopic, int qos, int retain, const char * payload);
-void homie_publishf(const char * subtopic, int qos, int retain, const char * format, ...);
-void homie_publish_int(const char * subtopic, int qos, int retain, const int payload);
-void homie_publish_bool(const char * subtopic, int qos, int retain, const bool payload);
-void homie_mktopic(char * topic, const char * subtopic);
+void homie_subscribe(const char *subtopic);
+void homie_publish(const char *subtopic, int qos, int retain, const char *payload);
+void homie_publishf(const char *subtopic, int qos, int retain, const char *format, ...);
+void homie_publish_int(const char *subtopic, int qos, int retain, const int payload);
+void homie_publish_bool(const char *subtopic, int qos, int retain, const bool payload);
+void homie_mktopic(char *topic, const char *subtopic);
 
 #endif // CM_ESP32_HOMIE_H

@@ -17,12 +17,13 @@ I believe a minimalist library is a better fit for the ESP-IDF ecosystem rather 
 
 ## Dependencies
 
- * ESP IDF 3.2.0
- * https://github.com/tuanpmt/espmqtt
+- ESP IDF 3.2.0
+- https://github.com/tuanpmt/espmqtt
 
 ## How to use
 
 Clone this component to [ESP-IDF](https://github.com/espressif/esp-idf) project (as submodule):
+
 ```
 git submodule add https://github.com/craftmetrics/esp32-homie.git components/esp32-homie
 ```
@@ -42,7 +43,7 @@ OTA works according to the following scheme:
 
 ## Remote Logging
 
-When remote logging is enabled, all calls to ESP_LOG*() are published to `./log`.
+When remote logging is enabled, all calls to ESP_LOG\*() are published to `./log`.
 
 To enable remote logging, send `true` to `./$implementation/logging`. To disable, send `false`.
 
