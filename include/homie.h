@@ -26,6 +26,7 @@ typedef struct
     char firmware_name[HOMIE_MAX_FIRMWARE_NAME_LEN];
     char firmware_version[HOMIE_MAX_FIRMWARE_VERSION_LEN];
     bool ota_enabled;
+    const char *cert_pem;
     void (*msg_handler)(char *, char *);
     void (*connected_handler)();
     void (*ota_status_handler)(int);

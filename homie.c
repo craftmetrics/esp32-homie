@@ -71,10 +71,10 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     homie_mktopic(topic, "$implementation/ota/url");
     if (_starts_with(topic, event->topic, event->topic_len))
     {
-        char *url = malloc(event->data_len + 1);
+        char *url = calloc(event->data_len + 1);
         strncpy(url, event->data, event->data_len);
         url[event->data_len] = '\0';
-        ota_init(url, config->ota_status_handler);
+        ota_init(url, config->cert_pem, config->ota_status_handler);
         return;
     }
 
@@ -83,11 +83,11 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     if (config->msg_handler)
     {
         int subtopic_len = event->topic_len - strlen(topic);
-        char *subtopic = malloc(subtopic_len + 1);
+        char *subtopic = calloc(subtopic_len + 1);
         strncpy(subtopic, event->topic + strlen(topic), subtopic_len);
         subtopic[subtopic_len] = '\0';
 
-        char *payload = malloc(event->data_len + 1);
+        char *payload = calloc(event->data_len + 1);
         strncpy(payload, event->data, event->data_len);
         payload[event->data_len] = '\0';
 
@@ -138,12 +138,9 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     return ESP_OK;
 }
 
-extern const uint8_t server_pem_start[] asm("_binary_server_pem_start");
-extern const uint8_t server_pem_end[] asm("_binary_server_pem_end");
-
 static void mqtt_app_start(void)
 {
-    char *lwt_topic = malloc(HOMIE_MAX_TOPIC_LEN);
+    char *lwt_topic = calloc(HOMIE_MAX_TOPIC_LEN);
     homie_mktopic(lwt_topic, "$online");
 
     esp_mqtt_client_config_t mqtt_cfg = {
@@ -157,7 +154,7 @@ static void mqtt_app_start(void)
         .lwt_retain = 1,
         .lwt_topic = lwt_topic,
         .keepalive = 15,
-        //.cert_pem = (const char *)server_pem_start,
+        .cert_pem = config->cert_pem,
     };
 
     client = esp_mqtt_client_init(&mqtt_cfg);
