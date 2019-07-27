@@ -71,7 +71,7 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     homie_mktopic(topic, "$implementation/ota/url");
     if (_starts_with(topic, event->topic, event->topic_len))
     {
-        char *url = calloc(event->data_len + 1);
+        char *url = calloc(1, event->data_len + 1);
         strncpy(url, event->data, event->data_len);
         url[event->data_len] = '\0';
         ota_init(url, config->cert_pem, config->ota_status_handler);
@@ -83,11 +83,11 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     if (config->msg_handler)
     {
         int subtopic_len = event->topic_len - strlen(topic);
-        char *subtopic = calloc(subtopic_len + 1);
+        char *subtopic = calloc(1, subtopic_len + 1);
         strncpy(subtopic, event->topic + strlen(topic), subtopic_len);
         subtopic[subtopic_len] = '\0';
 
-        char *payload = calloc(event->data_len + 1);
+        char *payload = calloc(1, event->data_len + 1);
         strncpy(payload, event->data, event->data_len);
         payload[event->data_len] = '\0';
 
@@ -140,7 +140,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 
 static void mqtt_app_start(void)
 {
-    char *lwt_topic = calloc(HOMIE_MAX_TOPIC_LEN);
+    char *lwt_topic = calloc(1, HOMIE_MAX_TOPIC_LEN);
     homie_mktopic(lwt_topic, "$online");
 
     esp_mqtt_client_config_t mqtt_cfg = {
