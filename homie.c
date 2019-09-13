@@ -242,6 +242,9 @@ static void _get_ip(char *ip_string)
 
 static void _get_mac(char *mac_string, bool sep)
 {
+    // NB: This is the base mac of the device. The actual wifi and eth MAC addresses
+    //     will be assigned as offsets from this.
+
     uint8_t mac[6];
     esp_efuse_mac_get_default(mac);
 
