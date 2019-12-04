@@ -5,4 +5,6 @@
 
 PROJECT_NAME := esp32-homie-example
 
+EXTRA_COMPONENT_DIRS := $(CURDIR)/../../
+
 include $(IDF_PATH)/make/project.mk
