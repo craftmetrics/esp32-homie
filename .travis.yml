@@ -32,6 +32,10 @@ matrix:
       - PROJECT_TARGET="esp32"
       - PROJECT_SDK_BRANCH="v3.2.2"
       - PROJECT_BUILD_METHOD="make"
+    - env:
+      - PROJECT_TARGET="esp32"
+      - PROJECT_SDK_BRANCH="v3.2.0"
+      - PROJECT_BUILD_METHOD="make"
 
 addons:
   apt:
