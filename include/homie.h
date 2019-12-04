@@ -3,7 +3,7 @@
 
 #include "mqtt_client.h"
 
-#define HOMIE_MAX_TOPIC_LEN (64)
+#define HOMIE_MAX_TOPIC_LEN (65)
 
 #define HOMIE_MAX_MQTT_URI_LEN (64)
 #define HOMIE_MAX_MQTT_USERNAME_LEN (32)
