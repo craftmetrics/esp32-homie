@@ -1,0 +1,9 @@
+[submodule "components/esp32-homie"]
+	path = components/esp32-homie
+	url = https://github.com/craftmetrics/esp32-homie.git
+[submodule "components/esp32mqtt"]
+	path = components/esp32mqtt
+	url = https://github.com/tuanpmt/espmqtt
+[submodule "components/esp-request"]
+	path = components/esp-request
+	url = https://github.com/tuanpmt/esp-request
