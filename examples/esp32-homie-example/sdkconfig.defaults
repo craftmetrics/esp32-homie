@@ -1,11 +1,4 @@
-# Override defaults
-CONFIG_WIFI_ENABLED=y
-
-# Project configuration
-CONFIG_WIFI_SSID="myssid"
-CONFIG_WIFI_PASSWORD="mypassword"
-CONFIG_MQTT_URI="mqtt://mqtt.example.com:1883"
-
-# Partition table
+CONFIG_PARTITION_TABLE_TWO_OTA=y
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"

@@ -2,26 +2,31 @@ menu "ESP32 Homie Example"
 
 config WIFI_SSID
     string "WiFi SSID"
+    default "myssid"
     help
         SSID (network name) to connect to.
 
 config WIFI_PASSWORD
     string "WiFi Password"
+    default "mypassword"
     help
         WiFi password (WPA or WPA2).
 
 config MQTT_URI
     string "MQTT Broker URI"
+    default "mqtt://test.example.org:1883"
     help
         URI to the MQTT broker.
 
 config MQTT_USERNAME
     string "MQTT Username"
+    default "user"
     help
         Username for connecting to the MQTT broker.
 
 config MQTT_PASSWORD
     string "MQTT Password"
+    default "password"
     help
         Password for connecting to the MQTT broker.
 

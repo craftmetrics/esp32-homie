@@ -2,14 +2,14 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include "nvs_flash.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/event_groups.h>
+#include <nvs_flash.h>
+#include <esp_system.h>
+#include <esp_wifi.h>
+#include <esp_event_loop.h>
+#include <esp_log.h>
 
-#include "esp_system.h"
-#include "esp_wifi.h"
-#include "esp_event_loop.h"
-#include "freertos/event_groups.h"
-
-#include "esp_log.h"
 #include "homie.h"
 
 static const char* TAG = "EXAMPLE";
