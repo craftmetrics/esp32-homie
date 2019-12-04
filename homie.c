@@ -3,7 +3,11 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
+#if defined(CONFIG_IDF_TARGET_ESP32) // defined in esp-idf 4.x, but not 3.x
+#include "esp_event.h"
+#else
 #include "esp_event_loop.h"
+#endif
 #include "esp_ota_ops.h"
 #include "freertos/event_groups.h"
 
@@ -26,9 +30,13 @@ static bool _starts_with(const char *pre, const char *str, int lenstr)
 #define REMOTE_LOGGING_MAX_PAYLOAD_LEN 1024
 static int _homie_logger(const char *str, va_list l)
 {
+    int ret;
     char buf[REMOTE_LOGGING_MAX_PAYLOAD_LEN];
 
-    vsnprintf(buf, REMOTE_LOGGING_MAX_PAYLOAD_LEN, str, l);
+    ret = vsnprintf(buf, REMOTE_LOGGING_MAX_PAYLOAD_LEN, str, l);
+    if (ret < 0 || ret >= sizeof(buf)) {
+        ESP_LOGW(TAG, "_homie_logger(): too long");
+    }
     homie_publish("log", 1, 0, buf);
     return vprintf(str, l);
 }
@@ -40,7 +48,7 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
 
     // Check if it is reboot command
     char topic[HOMIE_MAX_TOPIC_LEN];
-    homie_mktopic(topic, "$implementation/reboot");
+    ESP_ERROR_CHECK(homie_mktopic(topic, "$implementation/reboot"));
     if ((strncmp(topic, event->topic, event->topic_len) == 0) && (strncmp("true", event->data, event->data_len) == 0))
     {
         ESP_LOGI(TAG, "Rebooting...");
@@ -49,7 +57,7 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     }
 
     // Check if it is enable remote console
-    homie_mktopic(topic, "$implementation/logging");
+    ESP_ERROR_CHECK(homie_mktopic(topic, "$implementation/logging"));
     if (strncmp(topic, event->topic, event->topic_len) == 0)
     {
         if (strncmp("true", event->data, event->data_len) == 0)
@@ -68,7 +76,7 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     }
 
     // Check if it is a OTA update
-    homie_mktopic(topic, "$implementation/ota/url");
+    ESP_ERROR_CHECK(homie_mktopic(topic, "$implementation/ota/url"));
     if (_starts_with(topic, event->topic, event->topic_len))
     {
         char *url = calloc(1, event->data_len + 1);
@@ -79,7 +87,7 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     }
 
     // Call the application's handler
-    homie_mktopic(topic, "");
+    ESP_ERROR_CHECK(homie_mktopic(topic, ""));
     if (config->msg_handler)
     {
         int subtopic_len = event->topic_len - strlen(topic);
@@ -142,10 +150,12 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     return ESP_OK;
 }
 
-static void mqtt_app_start(void)
+static esp_err_t mqtt_app_start(void)
 {
     char *lwt_topic = calloc(1, HOMIE_MAX_TOPIC_LEN);
-    homie_mktopic(lwt_topic, "$online");
+    esp_err_t err;
+
+    ESP_ERROR_CHECK(homie_mktopic(lwt_topic, "$online"));
 
     esp_mqtt_client_config_t mqtt_cfg = {
         .client_id = config->client_id,
@@ -161,20 +171,38 @@ static void mqtt_app_start(void)
         .cert_pem = config->cert_pem,
     };
 
-    client = esp_mqtt_client_init(&mqtt_cfg);
-    esp_mqtt_client_start(client);
+    if ((client = esp_mqtt_client_init(&mqtt_cfg)) == NULL) {
+        ESP_LOGE(TAG, "esp_mqtt_client_init() failed");
+        goto fail;
+    }
+    if ((err = esp_mqtt_client_start(client)) != ESP_OK) {
+        ESP_LOGE(TAG, "esp_mqtt_client_start(): %s", esp_err_to_name(err));
+        goto fail;
+    }
+    return ESP_OK;
+fail:
+    return ESP_FAIL;
 }
 
-void homie_mktopic(char *topic, const char *subtopic)
+esp_err_t homie_mktopic(char *topic, const char *subtopic)
 {
-    snprintf(topic, HOMIE_MAX_TOPIC_LEN, "%s/%s/%s", config->base_topic, config->client_id, subtopic);
+    int ret = snprintf(topic, HOMIE_MAX_TOPIC_LEN, "%s/%s/%s",
+            config->base_topic, config->client_id, subtopic);
+
+    if (ret < 0 || ret >= HOMIE_MAX_TOPIC_LEN) {
+        ESP_LOGE(TAG, "homie_mktopic(): MQTT topic length is too long");
+        goto fail;
+    }
+    return ESP_OK;
+fail:
+    return ESP_FAIL;
 }
 
 void homie_subscribe(const char *subtopic)
 {
     int msg_id;
     char topic[HOMIE_MAX_TOPIC_LEN];
-    homie_mktopic(topic, subtopic);
+    ESP_ERROR_CHECK(homie_mktopic(topic, subtopic));
 
     msg_id = esp_mqtt_client_subscribe(client, topic, 0);
     ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
@@ -184,7 +212,7 @@ void homie_publish(const char *subtopic, int qos, int retain, const char *payloa
 {
     //int msg_id;
     char topic[HOMIE_MAX_TOPIC_LEN];
-    homie_mktopic(topic, subtopic);
+    ESP_ERROR_CHECK(homie_mktopic(topic, subtopic));
 
     esp_mqtt_client_publish(client, topic, payload, 0, qos, retain);
 }
@@ -193,16 +221,24 @@ void homie_publishf(const char *subtopic, int qos, int retain, const char *forma
 {
     char payload_string[64];
     va_list argptr;
+    int ret;
     va_start(argptr, format);
-    vsnprintf(payload_string, 64, format, argptr);
+    ret = vsnprintf(payload_string, 64, format, argptr);
     va_end(argptr);
+    if (ret < 0 || ret >= sizeof(payload_string)) {
+        ESP_LOGW(TAG, "homie_publishf(): too long");
+    }
     homie_publish(subtopic, qos, retain, payload_string);
 }
 
 void homie_publish_int(const char *subtopic, int qos, int retain, int payload)
 {
     char payload_string[16];
-    snprintf(payload_string, 16, "%d", payload);
+    int ret;
+    ret = snprintf(payload_string, sizeof(payload_string), "%d", payload);
+    if (ret < 0 || ret >= sizeof(payload_string)) {
+        ESP_LOGW(TAG, "homie_publish_int(): payload is too long");
+    }
     homie_publish(subtopic, qos, retain, payload_string);
 }
 
@@ -320,14 +356,24 @@ static void homie_task(void *pvParameter)
     }
 }
 
-void homie_init(homie_config_t *passed_config)
+esp_err_t homie_init(homie_config_t *passed_config)
 {
+    esp_err_t err;
     config = passed_config;
 
     // If client_id is blank, generate one based off the mac
     if (!config->client_id[0])
         _get_mac(config->client_id, false);
 
-    mqtt_app_start();
-    xTaskCreate(&homie_task, "homie_task", 8192, NULL, 5, NULL);
+    if ((err = mqtt_app_start()) != ESP_OK) {
+        ESP_LOGE(TAG, "mqtt_app_start(): %s", esp_err_to_name(err));
+        goto fail;
+    }
+    if (xTaskCreate(&homie_task, "homie_task", 8192, NULL, 5, NULL) != pdPASS) {
+        ESP_LOGE(TAG, "xTaskCreate() failed");
+        err = ESP_FAIL;
+        goto fail;
+    }
+fail:
+    return err;
 }
