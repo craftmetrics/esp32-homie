@@ -98,8 +98,8 @@ int homie_publish_bool(const char *subtopic, int qos, int retain, const bool pay
 /**
  * @brief Create MQTT topic
  *
- * @param[in] topic MQTT topic
- * @param[in] subtopic
+ * @param[out] topic Pointer to MQTT topic to be created
+ * @param[in] subtopic Topic path under base_topic
  * @return ESP_OK if no error, else ESP_FAIL
  */
 esp_err_t homie_mktopic(char *topic, const char *subtopic);
