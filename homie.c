@@ -50,6 +50,12 @@
 #define NOT_RETAINED (0)
 #define HOMIE_NODE_NAME "esp"
 
+#if defined(CONFIG_IDF_TARGET_ESP32S2BETA)
+#define CHIP_NAME "ESP32-S2 Beta"
+#else
+#define CHIP_NAME "ESP32"
+#endif
+
 #define FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(f) do { \
         if (f <= 0) { \
             goto fail; \
@@ -404,16 +410,20 @@ static esp_err_t homie_connected()
 {
     char mac_address[] = "00:00:00:00:00:00";
     char ip_address[16];
+    esp_chip_info_t chip_info;
+
     ESP_ERROR_CHECK(_get_mac(mac_address, sizeof(mac_address), true));
     ESP_ERROR_CHECK(_get_ip(ip_address, sizeof(ip_address)));
+    esp_chip_info(&chip_info);
+
 
 #if defined(CONFIG_HOMIE_VERSION_4_0_0)
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$state", QOS_1, RETAINED, "init"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$homie", QOS_1, RETAINED, "4.0.1"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$name", QOS_1, RETAINED, config->device_name));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$nodes", QOS_1, RETAINED, HOMIE_NODE_NAME));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/$name", QOS_1, RETAINED, "ESP_FIXME"));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/$type", QOS_1, RETAINED, "TYPE_FIXME"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/$name", QOS_1, RETAINED, CHIP_NAME));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publishf("esp/$type", QOS_1, RETAINED, "rev: %d", chip_info.revision));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/$properties", QOS_1, RETAINED, "uptime,rssi,signal,freeheap"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/uptime/$name", QOS_1, RETAINED, "Uptime since boot"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/uptime/$datatype", QOS_1, RETAINED, "integer"));
