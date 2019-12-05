@@ -61,10 +61,11 @@ static void wifi_init(void)
 void app_main()
 {
     ESP_ERROR_CHECK(nvs_flash_init());
+    EventGroupHandle_t homie_event_group;
 
     wifi_init();
 
-    homie_config_t homie_conf = {
+    static homie_config_t homie_conf = {
         .mqtt_uri = CONFIG_MQTT_URI,
         .mqtt_username = CONFIG_MQTT_USERNAME,
         .mqtt_password = CONFIG_MQTT_PASSWORD,
@@ -74,6 +75,11 @@ void app_main()
         .firmware_version = "0.0.1",
         .ota_enabled = true,
     };
+    homie_event_group = xEventGroupCreate();
+    if (homie_event_group == NULL) {
+        ESP_LOGE(TAG, "homie_event_group()");
+    }
+    homie_conf.event_group = &homie_event_group;
 
     homie_init(&homie_conf);
 

@@ -1,9 +1,14 @@
-#include <stdarg.h>
+#if defined(CONFIG_IDF_TARGET_ESP32) // defined in esp-idf 4.x, but not 3.x
+#define HOMIE_IDF_VERSION3
+#else
+#define HOMIE_IDF_VERSION4
+#endif
 
+#include <stdarg.h>
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
-#if defined(CONFIG_IDF_TARGET_ESP32) // defined in esp-idf 4.x, but not 3.x
+#if defined(HOMIE_IDF_VERSION4)
 #include "esp_event.h"
 #else
 #include "esp_event_loop.h"
@@ -14,10 +19,16 @@
 #include "homie.h"
 #include "ota.h"
 
-static const char *TAG = "HOMIE";
+#define QOS_0 (0)
+#define QOS_1 (1)
+#define QOS_2 (2)
+#define RETAINED (1)
+#define NOT_RETAINED (0)
 
+static const char *TAG = "HOMIE";
 static esp_mqtt_client_handle_t client;
 static homie_config_t *config;
+static EventGroupHandle_t *mqtt_group;
 
 static void homie_connected();
 
@@ -43,8 +54,7 @@ static int _homie_logger(const char *str, va_list l)
 
 static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
 {
-    printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-    printf("DATA=%.*s\r\n", event->data_len, event->data);
+    ESP_LOGD(TAG, "topic: %s length: %d data length: %d", event->topic, event->topic_len, event->data_len);
 
     // Check if it is reboot command
     char topic[HOMIE_MAX_TOPIC_LEN];
@@ -106,7 +116,7 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     }
 }
 
-static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
+static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 {
     switch (event->event_id)
     {
@@ -116,13 +126,15 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-        homie_connected();
-        if (config->connected_handler)
+        xEventGroupSetBits(*mqtt_group, HOMIE_MQTT_CONNECTED_BIT);
+        xEventGroupSetBits(*mqtt_group, HOMIE_MQTT_STATUS_UPDATE_REQUIRED);
+        if (config->connected_handler != NULL)
             config->connected_handler();
         break;
 
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
+        xEventGroupClearBits(*mqtt_group, HOMIE_MQTT_STATUS_UPDATE_REQUIRED);
         break;
 
     case MQTT_EVENT_SUBSCRIBED:
@@ -150,10 +162,23 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     return ESP_OK;
 }
 
-static esp_err_t mqtt_app_start(void)
+#if defined(HOMIE_IDF_VERSION4)
+static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
+    ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
+    mqtt_event_handler_cb(event_data);
+}
+#endif
+
+static esp_mqtt_client_handle_t mqtt_app_start(void)
 {
     char *lwt_topic = calloc(1, HOMIE_MAX_TOPIC_LEN);
     esp_err_t err;
+
+    ESP_LOGI(TAG, "URI: `%s`", config->mqtt_uri);
+    ESP_LOGI(TAG, "client_id: `%s`", config->client_id);
+    ESP_LOGI(TAG, "user name: `%s`", config->mqtt_username);
+    ESP_LOGI(TAG, "base_topic: `%s`", config->base_topic);
+    ESP_LOGI(TAG, "stack_size: %d", config->stack_size);
 
     ESP_ERROR_CHECK(homie_mktopic(lwt_topic, "$online"));
 
@@ -162,26 +187,31 @@ static esp_err_t mqtt_app_start(void)
         .uri = config->mqtt_uri,
         .username = config->mqtt_username,
         .password = config->mqtt_password,
-
-        .event_handle = mqtt_event_handler,
+#if defined(HOMIE_IDF_VERSION3)
+        .event_handle = mqtt_event_handler_cb,
+#endif
         .lwt_msg = "false",
         .lwt_retain = 1,
         .lwt_topic = lwt_topic,
         .keepalive = 15,
         .cert_pem = config->cert_pem,
+        .task_stack = config->stack_size,
     };
 
     if ((client = esp_mqtt_client_init(&mqtt_cfg)) == NULL) {
         ESP_LOGE(TAG, "esp_mqtt_client_init() failed");
         goto fail;
     }
+#if defined(HOMIE_IDF_VERSION4)
+    esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, client);
+#endif
     if ((err = esp_mqtt_client_start(client)) != ESP_OK) {
         ESP_LOGE(TAG, "esp_mqtt_client_start(): %s", esp_err_to_name(err));
         goto fail;
     }
-    return ESP_OK;
+    return client;
 fail:
-    return ESP_FAIL;
+    return NULL;
 }
 
 esp_err_t homie_mktopic(char *topic, const char *subtopic)
@@ -190,7 +220,8 @@ esp_err_t homie_mktopic(char *topic, const char *subtopic)
             config->base_topic, config->client_id, subtopic);
 
     if (ret < 0 || ret >= HOMIE_MAX_TOPIC_LEN) {
-        ESP_LOGE(TAG, "homie_mktopic(): MQTT topic length is too long");
+        ESP_LOGE(TAG, "homie_mktopic(): MQTT topic length is too long: ret: %d, HOMIE_MAX_TOPIC_LEN %d",
+                ret, HOMIE_MAX_TOPIC_LEN);
         goto fail;
     }
     return ESP_OK;
@@ -208,13 +239,18 @@ void homie_subscribe(const char *subtopic)
     ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 }
 
-void homie_publish(const char *subtopic, int qos, int retain, const char *payload)
+int homie_publish(const char *subtopic, int qos, int retain, const char *payload)
 {
-    //int msg_id;
+    int msg_id = -1;
     char topic[HOMIE_MAX_TOPIC_LEN];
-    ESP_ERROR_CHECK(homie_mktopic(topic, subtopic));
-
-    esp_mqtt_client_publish(client, topic, payload, 0, qos, retain);
+    if (homie_mktopic(topic, subtopic) != ESP_OK) {
+        ESP_LOGW(TAG, "homie_mktopic() failed");
+        goto fail;
+    }
+    ESP_LOGD(TAG, "%s\n", topic);
+    msg_id = esp_mqtt_client_publish(client, topic, payload, 0, qos, retain);
+fail:
+    return msg_id;
 }
 
 void homie_publishf(const char *subtopic, int qos, int retain, const char *format, ...)
@@ -255,11 +291,15 @@ static int _clamp(int n, int lower, int upper)
 static int8_t _get_wifi_rssi()
 {
     wifi_ap_record_t info;
-    if (!esp_wifi_sta_get_ap_info(&info))
+    if (esp_wifi_sta_get_ap_info(&info) != ESP_OK)
+    {
+        ESP_LOGW(TAG, "esp_wifi_sta_get_ap_info() failed");
+        return 0;
+    }
+    else
     {
         return info.rssi;
     }
-    return 0;
 }
 
 static void _get_ip(char *ip_string)
@@ -297,83 +337,94 @@ static void homie_connected()
     _get_mac(mac_address, true);
     _get_ip(ip_address);
 
-    homie_publish("$homie", 0, 1, "2.0.1");
-    homie_publish("$online", 0, 1, "true");
-    homie_publish("$name", 0, 1, config->device_name);
-    homie_publish("$localip", 0, 1, ip_address);
-    homie_publish("$mac", 0, 1, mac_address);
-    homie_publish("$fw/name", 0, 1, config->firmware_name);
-    homie_publish("$fw/version", 0, 1, config->firmware_version);
-    homie_publish("$nodes", 0, 1, ""); // FIXME: needs to be extendible
-    homie_publish("$implementation", 0, 1, "esp32-idf");
-    homie_publish("$implementation/version", 0, 1, "dev");
+    homie_publish("$homie", QOS_1, RETAINED, "2.0.1");
+    homie_publish("$online", QOS_1, RETAINED, "true");
+    homie_publish("$name", QOS_1, RETAINED, config->device_name);
+    homie_publish("$localip", QOS_1, RETAINED, ip_address);
+    homie_publish("$mac", QOS_1, RETAINED, mac_address);
+    homie_publish("$fw/name", QOS_1, RETAINED, config->firmware_name);
+    homie_publish("$fw/version", QOS_1, RETAINED, config->firmware_version);
+    homie_publish("$nodes", QOS_1, RETAINED, ""); // FIXME: needs to be extendible
+    homie_publish("$implementation", QOS_1, RETAINED, "esp32-idf");
+    homie_publish("$implementation/version", QOS_1, RETAINED, "dev");
 
-    homie_publish("$stats", 0, 1, "uptime,rssi,signal,freeheap"); // FIXME: needs to be extendible
-    homie_publish("$stats/interval", 0, 1, "30");
-    homie_publish_bool("$implementation/ota/enabled", 0, 1, config->ota_enabled);
+    homie_publish("$stats", QOS_1, RETAINED, "uptime,rssi,signal,freeheap"); // FIXME: needs to be extendible
+    homie_publish("$stats/interval", QOS_1, RETAINED, "30");
+    homie_publish_bool("$implementation/ota/enabled", QOS_1, RETAINED, config->ota_enabled);
 
     const esp_partition_t *running_partition = esp_ota_get_running_partition();
     if (running_partition != NULL)
     {
-        homie_publishf("$implementation/ota/running", 0, 1, "0x%08x", running_partition->address);
+        homie_publishf("$implementation/ota/running", QOS_1, RETAINED, "0x%08x", running_partition->address);
     }
     else
     {
-        homie_publishf("$implementation/ota/running", 0, 1, "NULL");
+        homie_publishf("$implementation/ota/running", QOS_1, RETAINED, "NULL");
     }
 
     const esp_partition_t *boot_partition = esp_ota_get_boot_partition();
     if (boot_partition != NULL)
     {
-        homie_publishf("$implementation/ota/boot", 0, 1, "0x%08x", boot_partition->address);
+        homie_publishf("$implementation/ota/boot", QOS_1, RETAINED, "0x%08x", boot_partition->address);
     }
     else
     {
-        homie_publishf("$implementation/ota/boot", 0, 1, "NULL");
+        homie_publishf("$implementation/ota/boot", QOS_1, RETAINED, "NULL");
     }
 
     homie_subscribe("$implementation/reboot");
     homie_subscribe("$implementation/logging");
     if (config->ota_enabled)
         homie_subscribe("$implementation/ota/url/#");
+    xEventGroupClearBits(*mqtt_group, HOMIE_MQTT_STATUS_UPDATE_REQUIRED);
+    ESP_LOGI(TAG, "device status has been updated");
 }
 
 static void homie_task(void *pvParameter)
 {
     while (1)
     {
-        homie_publish_int("$stats/uptime", 0, 0, esp_timer_get_time() / 1000000);
-
+        if ((xEventGroupGetBits(*mqtt_group) & HOMIE_MQTT_STATUS_UPDATE_REQUIRED) > 0) {
+            homie_connected();
+        }
+        homie_publish_int("$stats/uptime", QOS_1, RETAINED, esp_timer_get_time() / 1000000);
         int rssi = _get_wifi_rssi();
-        homie_publish_int("$stats/rssi", 0, 0, rssi);
+        homie_publish_int("$stats/rssi", QOS_1, RETAINED, rssi);
 
         // Translate to "signal" percentage, assuming RSSI range of (-100,-50)
-        homie_publish_int("$stats/signal", 0, 0, _clamp((rssi + 100) * 2, 0, 100));
+        homie_publish_int("$stats/signal", QOS_1, RETAINED, _clamp((rssi + 100) * 2, 0, 100));
 
-        homie_publish_int("$stats/freeheap", 0, 0, esp_get_free_heap_size());
-
+        homie_publish_int("$stats/freeheap", QOS_1, RETAINED, esp_get_free_heap_size());
         vTaskDelay(30000 / portTICK_PERIOD_MS);
     }
 }
 
-esp_err_t homie_init(homie_config_t *passed_config)
+esp_mqtt_client_handle_t homie_init(homie_config_t *passed_config)
 {
-    esp_err_t err;
     config = passed_config;
+    mqtt_group = config->event_group;
+    if (!config) {
+        ESP_LOGE(TAG, "invalid argument");
+        goto fail;
+    }
+    if (!config->event_group) {
+        ESP_LOGE(TAG, "invalid argument: event_group");
+        goto fail;
+    }
 
     // If client_id is blank, generate one based off the mac
     if (!config->client_id[0])
         _get_mac(config->client_id, false);
 
-    if ((err = mqtt_app_start()) != ESP_OK) {
-        ESP_LOGE(TAG, "mqtt_app_start(): %s", esp_err_to_name(err));
+    if ((client = mqtt_app_start()) == NULL) {
+        ESP_LOGE(TAG, "mqtt_app_start(): failed");
         goto fail;
     }
-    if (xTaskCreate(&homie_task, "homie_task", 8192, NULL, 5, NULL) != pdPASS) {
+    if (xTaskCreate(&homie_task, "homie_task", configMINIMAL_STACK_SIZE * 10, NULL, 5, NULL) != pdPASS) {
         ESP_LOGE(TAG, "xTaskCreate() failed");
-        err = ESP_FAIL;
         goto fail;
     }
+    return client;
 fail:
-    return err;
+    return NULL;
 }
