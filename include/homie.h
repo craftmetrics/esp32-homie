@@ -100,7 +100,7 @@ int homie_publish_bool(const char *subtopic, int qos, int retain, const bool pay
  *
  * @param[in] topic MQTT topic
  * @param[in] subtopic
- * #return ESP_OK if no error, else ESP_FAIL
+ * @return ESP_OK if no error, else ESP_FAIL
  */
 esp_err_t homie_mktopic(char *topic, const char *subtopic);
 
