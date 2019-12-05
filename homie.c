@@ -1,7 +1,7 @@
 #if defined(CONFIG_IDF_TARGET_ESP32) // defined in esp-idf 4.x, but not 3.x
-#define HOMIE_IDF_VERSION3
-#else
 #define HOMIE_IDF_VERSION4
+#else
+#define HOMIE_IDF_VERSION3
 #endif
 
 #include <stdarg.h>
