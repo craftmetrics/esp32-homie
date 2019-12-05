@@ -11,10 +11,13 @@ menu "Homie HTTP client"
         default HOMIE_VERSION_2_0_1
         config HOMIE_VERSION_2_0_1
             bool "2.0.1"
+        config HOMIE_VERSION_4_0_0
+            bool "4.0.0"
         help
             The version of Homie Convention.
 
             Currently supported versions:
               * 2.0.1
+              * 4.0.0
     endchoice
 endmenu
