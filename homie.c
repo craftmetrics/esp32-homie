@@ -276,15 +276,24 @@ fail:
     return -1;
 }
 
-void homie_publish_int(const char *subtopic, int qos, int retain, int payload)
+int homie_publish_int(const char *subtopic, int qos, int retain, int payload)
 {
     char payload_string[16];
+    int msd_id;
     int ret;
     ret = snprintf(payload_string, sizeof(payload_string), "%d", payload);
     if (ret < 0 || ret >= sizeof(payload_string)) {
-        ESP_LOGW(TAG, "homie_publish_int(): payload is too long");
+        ESP_LOGE(TAG, "homie_publish_int(): payload is too long");
+        goto fail;
     }
-    homie_publish(subtopic, qos, retain, payload_string);
+    msd_id = homie_publish(subtopic, qos, retain, payload_string);
+    if (msd_id < 0) {
+        ESP_LOGE(TAG, "homie_publish_int(): homie_publish() failed");
+        goto fail;
+    }
+    return msd_id;
+fail:
+    return -1;
 }
 
 void homie_publish_bool(const char *subtopic, int qos, int retain, bool payload)
@@ -433,19 +442,31 @@ fail:
 
 static void homie_task(void *pvParameter)
 {
+    int msg_id;
+    int rssi;
+
     while (1)
     {
+        rssi = _get_wifi_rssi();
         if ((xEventGroupGetBits(*mqtt_group) & HOMIE_MQTT_STATUS_UPDATE_REQUIRED) > 0) {
             homie_connected();
         }
-        homie_publish_int("$stats/uptime", QOS_1, RETAINED, esp_timer_get_time() / 1000000);
-        int rssi = _get_wifi_rssi();
-        homie_publish_int("$stats/rssi", QOS_1, RETAINED, rssi);
+        msg_id = homie_publish_int("$stats/uptime", QOS_1, RETAINED, esp_timer_get_time() / 1000000);
+        if (msg_id < 0) {
+            ESP_LOGW(TAG, "homie_task(): failed to publish updatime");
+        }
+        msg_id = homie_publish_int("$stats/rssi", QOS_1, RETAINED, rssi);
+        if (msg_id < 0)
+            ESP_LOGW(TAG, "homie_task(): failed to publish rssi");
 
         // Translate to "signal" percentage, assuming RSSI range of (-100,-50)
-        homie_publish_int("$stats/signal", QOS_1, RETAINED, _clamp((rssi + 100) * 2, 0, 100));
+        msg_id = homie_publish_int("$stats/signal", QOS_1, RETAINED, _clamp((rssi + 100) * 2, 0, 100));
+        if (msg_id < 0)
+            ESP_LOGW(TAG, "homie_task(): failed to publish signal");
 
-        homie_publish_int("$stats/freeheap", QOS_1, RETAINED, esp_get_free_heap_size());
+        msg_id = homie_publish_int("$stats/freeheap", QOS_1, RETAINED, esp_get_free_heap_size());
+        if (msg_id < 0)
+            ESP_LOGW(TAG, "homie_task(): failed to publish freeheap");
         vTaskDelay(30000 / portTICK_PERIOD_MS);
     }
 }
