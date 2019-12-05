@@ -367,7 +367,7 @@ fail:
     return ESP_FAIL;
 }
 
-static void homie_connected()
+static esp_err_t homie_connected()
 {
     char mac_address[] = "00:00:00:00:00:00";
     char ip_address[16];
@@ -436,8 +436,9 @@ static void homie_connected()
         homie_subscribe("$implementation/ota/url/#");
     xEventGroupClearBits(*mqtt_group, HOMIE_MQTT_STATUS_UPDATE_REQUIRED);
     ESP_LOGI(TAG, "device status has been updated");
+    return ESP_OK;
 fail:
-    return;
+    return ESP_FAIL;
 }
 
 static void homie_task(void *pvParameter)
@@ -449,7 +450,9 @@ static void homie_task(void *pvParameter)
     {
         rssi = _get_wifi_rssi();
         if ((xEventGroupGetBits(*mqtt_group) & HOMIE_MQTT_STATUS_UPDATE_REQUIRED) > 0) {
-            homie_connected();
+            if (homie_connected() != ESP_OK) {
+                ESP_LOGW(TAG, "homie_task(): homie_connected() failed");
+            }
         }
         msg_id = homie_publish_int("$stats/uptime", QOS_1, RETAINED, esp_timer_get_time() / 1000000);
         if (msg_id < 0) {
