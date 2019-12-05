@@ -302,40 +302,59 @@ static int8_t _get_wifi_rssi()
     }
 }
 
-static void _get_ip(char *ip_string)
+static esp_err_t _get_ip(char *ip_string, size_t len)
 {
+    int ret;
     tcpip_adapter_ip_info_t ip;
     tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip);
 
-    sprintf(
+    ret = snprintf(
         ip_string,
+        len,
         "%u.%u.%u.%u",
         (ip.ip.addr & 0x000000ff),
         (ip.ip.addr & 0x0000ff00) >> 8,
         (ip.ip.addr & 0x00ff0000) >> 16,
         (ip.ip.addr & 0xff000000) >> 24);
+    if (ret < 0 || ret >= len) {
+        ESP_LOGE(TAG, "_get_ip(): ip_string too short");
+        goto fail;
+    }
+    return ESP_OK;
+fail:
+    return ESP_FAIL;
 }
 
-static void _get_mac(char *mac_string, bool sep)
+static esp_err_t _get_mac(char *mac_string, size_t len, bool sep)
 {
     // NB: This is the base mac of the device. The actual wifi and eth MAC addresses
     //     will be assigned as offsets from this.
 
     uint8_t mac[6];
+    int ret;
     esp_efuse_mac_get_default(mac);
 
     if (sep)
-        sprintf(mac_string, "%X:%X:%X:%X:%X:%X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        ret = snprintf(mac_string, len, "%02X:%02X:%02X:%02X:%02X:%02X",
+                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     else
-        sprintf(mac_string, "%x%x%x%x%x%x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        ret = snprintf(mac_string, len, "%x%x%x%x%x%x",
+                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    if (ret < 0 || ret >= len) {
+        ESP_LOGE(TAG, "_get_mac(): mac_string too short");
+        goto fail;
+    }
+    return ESP_OK;
+fail:
+    return ESP_FAIL;
 }
 
 static void homie_connected()
 {
-    char mac_address[18];
+    char mac_address[] = "00:00:00:00:00:00";
     char ip_address[16];
-    _get_mac(mac_address, true);
-    _get_ip(ip_address);
+    ESP_ERROR_CHECK(_get_mac(mac_address, sizeof(mac_address), true));
+    ESP_ERROR_CHECK(_get_ip(ip_address, sizeof(ip_address)));
 
     homie_publish("$homie", QOS_1, RETAINED, "2.0.1");
     homie_publish("$online", QOS_1, RETAINED, "true");
@@ -414,7 +433,7 @@ esp_mqtt_client_handle_t homie_init(homie_config_t *passed_config)
 
     // If client_id is blank, generate one based off the mac
     if (!config->client_id[0])
-        _get_mac(config->client_id, false);
+        _get_mac(config->client_id, HOMIE_MAX_CLIENT_ID_LEN, false);
 
     if ((client = mqtt_app_start()) == NULL) {
         ESP_LOGE(TAG, "mqtt_app_start(): failed");
