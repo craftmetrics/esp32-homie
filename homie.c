@@ -383,6 +383,7 @@ static esp_err_t homie_connected()
     ESP_ERROR_CHECK(_get_mac(mac_address, sizeof(mac_address), true));
     ESP_ERROR_CHECK(_get_ip(ip_address, sizeof(ip_address)));
 
+#if defined(CONFIG_HOMIE_VERSION_2_0_1)
     /* when QoS is 1, msg_id must be positive integer */
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$homie", QOS_1, RETAINED, "2.0.1"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$online", QOS_1, RETAINED, "true"));
@@ -443,6 +444,7 @@ static esp_err_t homie_connected()
     homie_subscribe("$implementation/logging");
     if (config->ota_enabled)
         homie_subscribe("$implementation/ota/url/#");
+#endif
     xEventGroupClearBits(*mqtt_group, HOMIE_MQTT_STATUS_UPDATE_REQUIRED);
     ESP_LOGI(TAG, "device status has been updated");
     return ESP_OK;

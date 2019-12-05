@@ -1,10 +1,20 @@
 menu "Homie HTTP client"
 
+    config ESP_HTTP_CLIENT_ENABLE_HTTPS
+        bool "Enable https"
+        default y
+        help
+            This option will enable https protocol by linking mbedtls library
+            and initializing SSL transport
+    choice HOMIE_VERSION
+        bool "Homie Convention version"
+        default HOMIE_VERSION_2_0_1
+        config HOMIE_VERSION_2_0_1
+            bool "2.0.1"
+        help
+            The version of Homie Convention.
 
-config ESP_HTTP_CLIENT_ENABLE_HTTPS
-    bool "Enable https"
-    default y
-    help
-        This option will enable https protocol by linking mbedtls library and initializing SSL transport
-
+            Currently supported versions:
+              * 2.0.1
+    endchoice
 endmenu
