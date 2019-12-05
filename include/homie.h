@@ -83,7 +83,17 @@ int homie_publishf(const char *subtopic, int qos, int retain, const char *format
  * @return -1 on failure, return value of esp_mqtt_client_publish() on success.
  */
 int homie_publish_int(const char *subtopic, int qos, int retain, const int payload);
-void homie_publish_bool(const char *subtopic, int qos, int retain, const bool payload);
+
+/**
+ * @brief Publish a boolen value
+ *
+ * @param[in] subtopic Topic path under base_topic
+ * @param[in] qos QoS level
+ * @param[in] retain Retain flag
+ * @param[in] payload the boolean value
+ * @return -1 on failure, return value of esp_mqtt_client_publish() on success.
+ */
+int homie_publish_bool(const char *subtopic, int qos, int retain, const bool payload);
 
 /**
  * @brief Create MQTT topic

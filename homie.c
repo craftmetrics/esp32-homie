@@ -25,12 +25,18 @@
 #define RETAINED (1)
 #define NOT_RETAINED (0)
 
+#define FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(f) do { \
+        if (f <= 0) { \
+            goto fail; \
+        } \
+    } while (0)
+
 static const char *TAG = "HOMIE";
 static esp_mqtt_client_handle_t client;
 static homie_config_t *config;
 static EventGroupHandle_t *mqtt_group;
 
-static void homie_connected();
+static esp_err_t homie_connected();
 
 static bool _starts_with(const char *pre, const char *str, int lenstr)
 {
@@ -48,7 +54,9 @@ static int _homie_logger(const char *str, va_list l)
     if (ret < 0 || ret >= sizeof(buf)) {
         ESP_LOGW(TAG, "_homie_logger(): too long");
     }
-    homie_publish("log", 1, 0, buf);
+    if (homie_publish("log", QOS_1, NOT_RETAINED, buf) <= 0) {
+        ESP_LOGW(TAG, "_homie_logger(): homie_publish() failed");
+    }
     return vprintf(str, l);
 }
 
@@ -296,9 +304,9 @@ fail:
     return -1;
 }
 
-void homie_publish_bool(const char *subtopic, int qos, int retain, bool payload)
+int homie_publish_bool(const char *subtopic, int qos, int retain, bool payload)
 {
-    homie_publish(subtopic, qos, retain, payload ? "true" : "false");
+    return homie_publish(subtopic, qos, retain, payload ? "true" : "false");
 }
 
 static int _clamp(int n, int lower, int upper)
@@ -375,20 +383,21 @@ static esp_err_t homie_connected()
     ESP_ERROR_CHECK(_get_mac(mac_address, sizeof(mac_address), true));
     ESP_ERROR_CHECK(_get_ip(ip_address, sizeof(ip_address)));
 
-    homie_publish("$homie", QOS_1, RETAINED, "2.0.1");
-    homie_publish("$online", QOS_1, RETAINED, "true");
-    homie_publish("$name", QOS_1, RETAINED, config->device_name);
-    homie_publish("$localip", QOS_1, RETAINED, ip_address);
-    homie_publish("$mac", QOS_1, RETAINED, mac_address);
-    homie_publish("$fw/name", QOS_1, RETAINED, config->firmware_name);
-    homie_publish("$fw/version", QOS_1, RETAINED, config->firmware_version);
-    homie_publish("$nodes", QOS_1, RETAINED, ""); // FIXME: needs to be extendible
-    homie_publish("$implementation", QOS_1, RETAINED, "esp32-idf");
-    homie_publish("$implementation/version", QOS_1, RETAINED, "dev");
+    /* when QoS is 1, msg_id must be positive integer */
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$homie", QOS_1, RETAINED, "2.0.1"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$online", QOS_1, RETAINED, "true"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$name", QOS_1, RETAINED, config->device_name));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$localip", QOS_1, RETAINED, ip_address));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$mac", QOS_1, RETAINED, mac_address));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$fw/name", QOS_1, RETAINED, config->firmware_name));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$fw/version", QOS_1, RETAINED, config->firmware_version));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$nodes", QOS_1, RETAINED, "")); // FIXME: needs to be extendible
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$implementation", QOS_1, RETAINED, "esp32-idf"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$implementation/version", QOS_1, RETAINED, "dev"));
 
-    homie_publish("$stats", QOS_1, RETAINED, "uptime,rssi,signal,freeheap"); // FIXME: needs to be extendible
-    homie_publish("$stats/interval", QOS_1, RETAINED, "30");
-    homie_publish_bool("$implementation/ota/enabled", QOS_1, RETAINED, config->ota_enabled);
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$stats", QOS_1, RETAINED, "uptime,rssi,signal,freeheap")); // FIXME: needs to be extendible
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$stats/interval", QOS_1, RETAINED, "30"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish_bool("$implementation/ota/enabled", QOS_1, RETAINED, config->ota_enabled));
 
     const esp_partition_t *running_partition = esp_ota_get_running_partition();
     if (running_partition != NULL)
