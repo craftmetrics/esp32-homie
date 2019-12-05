@@ -404,7 +404,6 @@ static esp_err_t homie_connected()
 {
     char mac_address[] = "00:00:00:00:00:00";
     char ip_address[16];
-    int msg_id;
     ESP_ERROR_CHECK(_get_mac(mac_address, sizeof(mac_address), true));
     ESP_ERROR_CHECK(_get_ip(ip_address, sizeof(ip_address)));
 
@@ -426,6 +425,8 @@ static esp_err_t homie_connected()
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/freeheap/$datatype", QOS_1, RETAINED, "integer"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$state", QOS_1, RETAINED, "ready"));
 #elif defined(CONFIG_HOMIE_VERSION_2_0_1)
+    int msg_id;
+
     /* when QoS is 1, msg_id must be positive integer */
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$homie", QOS_1, RETAINED, "2.0.1"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$online", QOS_1, RETAINED, "true"));
