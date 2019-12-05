@@ -253,18 +253,27 @@ fail:
     return msg_id;
 }
 
-void homie_publishf(const char *subtopic, int qos, int retain, const char *format, ...)
+int homie_publishf(const char *subtopic, int qos, int retain, const char *format, ...)
 {
     char payload_string[64];
+    int msg_id;
     va_list argptr;
     int ret;
     va_start(argptr, format);
-    ret = vsnprintf(payload_string, 64, format, argptr);
+    ret = vsnprintf(payload_string, sizeof(payload_string), format, argptr);
     va_end(argptr);
     if (ret < 0 || ret >= sizeof(payload_string)) {
         ESP_LOGW(TAG, "homie_publishf(): too long");
+        goto fail;
     }
-    homie_publish(subtopic, qos, retain, payload_string);
+    msg_id = homie_publish(subtopic, qos, retain, payload_string);
+    if (msg_id < 0) {
+        ESP_LOGE(TAG, "homie_publish() failed");
+        goto fail;
+    }
+    return msg_id;
+fail:
+    return -1;
 }
 
 void homie_publish_int(const char *subtopic, int qos, int retain, int payload)
@@ -353,6 +362,7 @@ static void homie_connected()
 {
     char mac_address[] = "00:00:00:00:00:00";
     char ip_address[16];
+    int msg_id;
     ESP_ERROR_CHECK(_get_mac(mac_address, sizeof(mac_address), true));
     ESP_ERROR_CHECK(_get_ip(ip_address, sizeof(ip_address)));
 
@@ -374,21 +384,41 @@ static void homie_connected()
     const esp_partition_t *running_partition = esp_ota_get_running_partition();
     if (running_partition != NULL)
     {
-        homie_publishf("$implementation/ota/running", QOS_1, RETAINED, "0x%08x", running_partition->address);
+        msg_id = homie_publishf("$implementation/ota/running",
+                                QOS_1, RETAINED, "0x%08x", running_partition->address);
+        if (msg_id < 0) {
+            ESP_LOGE(TAG, "homie_connected(): homie_publishf() failed");
+            goto fail;
+        }
     }
     else
     {
-        homie_publishf("$implementation/ota/running", QOS_1, RETAINED, "NULL");
+        msg_id = homie_publishf("$implementation/ota/running",
+                                QOS_1, RETAINED, "NULL");
+        if (msg_id < 0) {
+            ESP_LOGE(TAG, "homie_connected(): homie_publishf() failed");
+            goto fail;
+        }
     }
 
     const esp_partition_t *boot_partition = esp_ota_get_boot_partition();
     if (boot_partition != NULL)
     {
-        homie_publishf("$implementation/ota/boot", QOS_1, RETAINED, "0x%08x", boot_partition->address);
+        msg_id = homie_publishf("$implementation/ota/boot",
+                                QOS_1, RETAINED, "0x%08x", boot_partition->address);
+        if (msg_id < 0) {
+            ESP_LOGE(TAG, "homie_connected(): homie_publishf() failed");
+            goto fail;
+        }
     }
     else
     {
-        homie_publishf("$implementation/ota/boot", QOS_1, RETAINED, "NULL");
+        msg_id = homie_publishf("$implementation/ota/boot",
+                                QOS_1, RETAINED, "NULL");
+        if (msg_id < 0) {
+            ESP_LOGE(TAG, "homie_connected(): homie_publishf() failed");
+            goto fail;
+        }
     }
 
     homie_subscribe("$implementation/reboot");
@@ -397,6 +427,8 @@ static void homie_connected()
         homie_subscribe("$implementation/ota/url/#");
     xEventGroupClearBits(*mqtt_group, HOMIE_MQTT_STATUS_UPDATE_REQUIRED);
     ESP_LOGI(TAG, "device status has been updated");
+fail:
+    return;
 }
 
 static void homie_task(void *pvParameter)

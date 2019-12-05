@@ -59,8 +59,19 @@ void homie_subscribe(const char *subtopic);
  * @param[in] payload The message
  * @return -1 on failure, return value of esp_mqtt_client_publish() on success.
  */
-int  homie_publish(const char *subtopic, int qos, int retain, const char *payload);
-void homie_publishf(const char *subtopic, int qos, int retain, const char *format, ...);
+int homie_publish(const char *subtopic, int qos, int retain, const char *payload);
+
+/**
+ * @brief Publish a message with formart string
+ *
+ * @param[in] subtopic Topic path under base_topic
+ * @param[in] qos QoS level
+ * @param[in] retain Retain flag
+ * @param[in] format Format string
+ * @param[in] va_list Arguments for format string
+ * @return -1 on failure, return value of esp_mqtt_client_publish() on success.
+ */
+int homie_publishf(const char *subtopic, int qos, int retain, const char *format, ...);
 void homie_publish_int(const char *subtopic, int qos, int retain, const int payload);
 void homie_publish_bool(const char *subtopic, int qos, int retain, const bool payload);
 
