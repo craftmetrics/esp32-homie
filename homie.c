@@ -410,7 +410,7 @@ static esp_err_t homie_connected()
 
 #if defined(CONFIG_HOMIE_VERSION_4_0_0)
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$state", QOS_1, RETAINED, "init"));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$homie", QOS_1, RETAINED, "3.0.1"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$homie", QOS_1, RETAINED, "4.0.1"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$name", QOS_1, RETAINED, config->device_name));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$nodes", QOS_1, RETAINED, HOMIE_NODE_NAME));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/$name", QOS_1, RETAINED, "ESP_FIXME"));
@@ -424,6 +424,7 @@ static esp_err_t homie_connected()
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/signal/$datatype", QOS_1, RETAINED, "integer"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/freeheap/$name", QOS_1, RETAINED, "Free heap memory"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/freeheap/$datatype", QOS_1, RETAINED, "integer"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$state", QOS_1, RETAINED, "ready"));
 #elif defined(CONFIG_HOMIE_VERSION_2_0_1)
     /* when QoS is 1, msg_id must be positive integer */
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$homie", QOS_1, RETAINED, "2.0.1"));
