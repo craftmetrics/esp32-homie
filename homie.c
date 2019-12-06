@@ -143,10 +143,10 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     // Check if it is a OTA update
 #if defined(CONFIG_HOMIE_VERSION_2_0_1)
     ESP_ERROR_CHECK(homie_mktopic(topic, "$implementation/ota/url"));
-    if (_starts_with(topic, event->topic, event->topic_len) && strncmp("true", event->data, event->data_len) == 0)
+    if (config->ota_enabled && _starts_with(topic, event->topic, event->topic_len) && strncmp("true", event->data, event->data_len) == 0)
 #elif defined(CONFIG_HOMIE_VERSION_4_0_0)
     ESP_ERROR_CHECK(homie_mktopic(topic, "esp/ota/set"));
-    if (_starts_with(topic, event->topic, event->topic_len) && strncmp("run", event->data, event->data_len) == 0)
+    if (config->ota_enabled && _starts_with(topic, event->topic, event->topic_len) && strncmp("run", event->data, event->data_len) == 0)
 #else
 #error "Homie version is not set"
 #endif
@@ -155,7 +155,13 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
         strncpy(url, event->data, event->data_len);
         url[event->data_len] = '\0';
 #if defined(HOMIE_IDF_VERSION4)
-        do_ota(url, config->cert_pem);
+        if (homie_publish("esp/ota", QOS_1, RETAINED, "running") == 0) {
+            ESP_LOGW(TAG, "failed to set esp/ota to `running`");
+        }
+        do_ota(config->ota_uri, config->cert_pem);
+        if (homie_publish("esp/ota", QOS_1, RETAINED, "enabled") == 0) {
+            ESP_LOGW(TAG, "failed to set esp/ota to `enabled`");
+        }
 #else
         ota_init(url, config->cert_pem, config->ota_status_handler);
 #endif
@@ -501,7 +507,7 @@ static esp_err_t homie_connected()
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/$name", QOS_1, RETAINED, "OTA state"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/$datatype", QOS_1, RETAINED, "enum"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/$settable", QOS_1, RETAINED, config->ota_enabled ? "true" : "false"));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/$format", QOS_1, RETAINED, "idle,disabled,run"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/$format", QOS_1, RETAINED, "idle,disabled,running,run"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota", QOS_1, RETAINED, config->ota_enabled ? "idle" : "disabled"));
     if (config->ota_enabled && homie_subscribe("esp/ota/set") < 0) {
         ESP_LOGE(TAG, "failed to subscribe esp/ota/set");
