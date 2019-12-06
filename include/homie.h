@@ -65,6 +65,7 @@ typedef struct
     EventGroupHandle_t *event_group;                        //!< Event group handle
     uint16_t stack_size;                                    //!< Stack size of MQTT client
     char node_lists[HOMIE_MAX_NODE_LISTS_LEN];              //!< comma-separated string of nodes
+    void (*init_handler)();                                  //!< Pointer to a function that runs during `init` state. Typically, used to describe nodes in node_lists ($name, $type, and $properties).
 } homie_config_t;
 
 /**

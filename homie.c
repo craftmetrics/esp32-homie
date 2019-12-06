@@ -513,6 +513,9 @@ static esp_err_t homie_connected()
     if (config->ota_enabled)
         homie_subscribe("$implementation/ota/url/#");
 #endif
+    if (config->init_handler != NULL) {
+        config->init_handler();
+    }
     xEventGroupClearBits(*mqtt_group, HOMIE_MQTT_STATUS_UPDATE_REQUIRED);
     ESP_LOGI(TAG, "device status has been updated");
     return ESP_OK;
