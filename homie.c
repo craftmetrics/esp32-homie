@@ -22,26 +22,33 @@
  *   SOFTWARE.
  */
 
+#include <stdarg.h>
+#include "freertos/FreeRTOS.h" // need to include this here for CONFIG_IDF_TARGET_ESP32
+#include "freertos/event_groups.h"
+
 #if defined(CONFIG_IDF_TARGET_ESP32) // defined in esp-idf 4.x, but not 3.x
 #define HOMIE_IDF_VERSION4
 #else
 #define HOMIE_IDF_VERSION3
 #endif
 
-#include <stdarg.h>
-#include "esp_log.h"
-#include "esp_system.h"
-#include "esp_wifi.h"
+#include <esp_log.h>
+#include <esp_system.h>
+#include <esp_wifi.h>
+#include <esp_ota_ops.h>
 #if defined(HOMIE_IDF_VERSION4)
-#include "esp_event.h"
+#include <esp_event.h>
 #else
-#include "esp_event_loop.h"
+#include <esp_event_loop.h>
 #endif
-#include "esp_ota_ops.h"
-#include "freertos/event_groups.h"
 
 #include "homie.h"
+
+#if defined(HOMIE_IDF_VERSION4)
 #include "task_ota.h"
+#else
+#include "ota.h"
+#endif
 
 #define QOS_0 (0)
 #define QOS_1 (1)
@@ -147,7 +154,11 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
         char *url = calloc(1, event->data_len + 1);
         strncpy(url, event->data, event->data_len);
         url[event->data_len] = '\0';
+#if defined(HOMIE_IDF_VERSION4)
         do_ota(url, config->cert_pem);
+#else
+        ota_init(url, config->cert_pem, config->ota_status_handler);
+#endif
         return;
     }
 
