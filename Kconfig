@@ -8,16 +8,13 @@ menu "Homie HTTP client"
             and initializing SSL transport
     choice HOMIE_VERSION
         bool "Homie Convention version"
-        default HOMIE_VERSION_2_0_1
-        config HOMIE_VERSION_2_0_1
-            bool "2.0.1"
+        default HOMIE_VERSION_4_0_0
         config HOMIE_VERSION_4_0_0
             bool "4.0.0"
         help
             The version of Homie Convention.
 
             Currently supported versions:
-              * 2.0.1
               * 4.0.0
     endchoice
 endmenu

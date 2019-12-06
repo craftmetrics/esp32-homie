@@ -104,15 +104,8 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
 
     // Check if it is reboot command
     char topic[HOMIE_MAX_TOPIC_LEN];
-#if defined(CONFIG_HOMIE_VERSION_2_0_1)
-    ESP_ERROR_CHECK(homie_mktopic(topic, "$implementation/reboot"));
-    if ((strncmp(topic, event->topic, event->topic_len) == 0) && (strncmp("true", event->data, event->data_len) == 0))
-#elif defined(CONFIG_HOMIE_VERSION_4_0_0)
     ESP_ERROR_CHECK(homie_mktopic(topic, "esp/reboot/set"));
     if ((strncmp(topic, event->topic, event->topic_len) == 0) && (strncmp("reboot", event->data, event->data_len) == 0))
-#else
-#error "Homie version is not set"
-#endif
     {
         if (config->reboot_enabled) {
             ESP_LOGI(TAG, "Rebooting...");
@@ -141,20 +134,9 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     }
 
     // Check if it is a OTA update
-#if defined(CONFIG_HOMIE_VERSION_2_0_1)
-    ESP_ERROR_CHECK(homie_mktopic(topic, "$implementation/ota/url"));
-    if (config->ota_enabled && _starts_with(topic, event->topic, event->topic_len) && strncmp("true", event->data, event->data_len) == 0)
-#elif defined(CONFIG_HOMIE_VERSION_4_0_0)
     ESP_ERROR_CHECK(homie_mktopic(topic, "esp/ota/set"));
     if (config->ota_enabled && _starts_with(topic, event->topic, event->topic_len) && strncmp("run", event->data, event->data_len) == 0)
-#else
-#error "Homie version is not set"
-#endif
     {
-        char *url = calloc(1, event->data_len + 1);
-        strncpy(url, event->data, event->data_len);
-        url[event->data_len] = '\0';
-#if defined(HOMIE_IDF_VERSION4)
         if (homie_publish("esp/ota", QOS_1, RETAINED, "running") == 0) {
             ESP_LOGW(TAG, "failed to set esp/ota to `running`");
         }
@@ -162,9 +144,6 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
         if (homie_publish("esp/ota", QOS_1, RETAINED, "enabled") == 0) {
             ESP_LOGW(TAG, "failed to set esp/ota to `enabled`");
         }
-#else
-        ota_init(url, config->cert_pem, config->ota_status_handler);
-#endif
         return;
     }
 
@@ -456,7 +435,6 @@ static esp_err_t homie_connected()
     ESP_ERROR_CHECK(_get_ip(ip_address, sizeof(ip_address)));
     esp_chip_info(&chip_info);
 
-#if defined(CONFIG_HOMIE_VERSION_4_0_0)
     int ret;
     char nodes[HOMIE_MAX_NODE_LISTS_LEN + sizeof(homie_node_name)];
 
@@ -523,70 +501,6 @@ static esp_err_t homie_connected()
     }
 
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$state", QOS_1, RETAINED, "ready"));
-#elif defined(CONFIG_HOMIE_VERSION_2_0_1)
-    int msg_id;
-
-    /* when QoS is 1, msg_id must be positive integer */
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$homie", QOS_1, RETAINED, "2.0.1"));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$online", QOS_1, RETAINED, "true"));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$name", QOS_1, RETAINED, config->device_name));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$localip", QOS_1, RETAINED, ip_address));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$mac", QOS_1, RETAINED, mac_address));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$fw/name", QOS_1, RETAINED, config->firmware_name));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$fw/version", QOS_1, RETAINED, config->firmware_version));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$nodes", QOS_1, RETAINED, "")); // FIXME: needs to be extendible
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$implementation", QOS_1, RETAINED, "esp32-idf"));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$implementation/version", QOS_1, RETAINED, "dev"));
-
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$stats", QOS_1, RETAINED, "uptime,rssi,signal,freeheap")); // FIXME: needs to be extendible
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$stats/interval", QOS_1, RETAINED, "30"));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish_bool("$implementation/ota/enabled", QOS_1, RETAINED, config->ota_enabled));
-
-    const esp_partition_t *running_partition = esp_ota_get_running_partition();
-    if (running_partition != NULL)
-    {
-        msg_id = homie_publishf("$implementation/ota/running",
-                                QOS_1, RETAINED, "0x%08x", running_partition->address);
-        if (msg_id < 0) {
-            ESP_LOGE(TAG, "homie_connected(): homie_publishf() failed");
-            goto fail;
-        }
-    }
-    else
-    {
-        msg_id = homie_publishf("$implementation/ota/running",
-                                QOS_1, RETAINED, "NULL");
-        if (msg_id < 0) {
-            ESP_LOGE(TAG, "homie_connected(): homie_publishf() failed");
-            goto fail;
-        }
-    }
-
-    const esp_partition_t *boot_partition = esp_ota_get_boot_partition();
-    if (boot_partition != NULL)
-    {
-        msg_id = homie_publishf("$implementation/ota/boot",
-                                QOS_1, RETAINED, "0x%08x", boot_partition->address);
-        if (msg_id < 0) {
-            ESP_LOGE(TAG, "homie_connected(): homie_publishf() failed");
-            goto fail;
-        }
-    }
-    else
-    {
-        msg_id = homie_publishf("$implementation/ota/boot",
-                                QOS_1, RETAINED, "NULL");
-        if (msg_id < 0) {
-            ESP_LOGE(TAG, "homie_connected(): homie_publishf() failed");
-            goto fail;
-        }
-    }
-
-    homie_subscribe("$implementation/reboot");
-    homie_subscribe("$implementation/logging");
-    if (config->ota_enabled)
-        homie_subscribe("$implementation/ota/url/#");
-#endif
     if (config->init_handler != NULL) {
         config->init_handler();
     }
@@ -609,17 +523,10 @@ fail:
 static int topic_path_to_node_attribute(char *buf, const size_t len, const char *node, const char *attr)
 {
     int ret;
-#if defined(CONFIG_HOMIE_VERSION_4_0_0)
 
     /* homie/24ac45ac44/esp/freeheap -> value */
     char format[] = "%s/%s";
     ret = snprintf(buf, len, format, node, attr);
-#elif defined(CONFIG_HOMIE_VERSION_2_0_1)
-
-    /* homie/24ac45ac44/$stats/freeheap -> value */
-    char format[] = "$stats/%s";
-    ret = snprintf(buf, len, format, attr);
-#endif
     if (ret < 0 || ret >= len) {
         ESP_LOGE(TAG, "topic_path_to_node_attribute(): buf is too small");
         goto fail;
