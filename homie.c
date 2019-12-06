@@ -47,7 +47,7 @@
 #if defined(HOMIE_IDF_VERSION4)
 #include "task_ota.h"
 #else
-#include "ota.h"
+#include "task_ota_3_2.h"
 #endif
 
 #define QOS_0 (0)
