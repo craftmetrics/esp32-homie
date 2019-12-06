@@ -39,6 +39,8 @@
 #define HOMIE_MAX_BASE_TOPIC_LEN (32)
 #define HOMIE_MAX_FIRMWARE_NAME_LEN (32)
 #define HOMIE_MAX_FIRMWARE_VERSION_LEN (8)
+#define HOMIE_MAX_NODE_LISTS_LEN (256)
+
 #define HOMIE_MQTT_CONNECTED_BIT BIT0
 #define HOMIE_MQTT_STATUS_UPDATE_REQUIRED BIT1
 
@@ -62,6 +64,7 @@ typedef struct
     void (*ota_status_handler)(int);                        //!< ota_status_handler
     EventGroupHandle_t *event_group;                        //!< Event group handle
     uint16_t stack_size;                                    //!< Stack size of MQTT client
+    char node_lists[HOMIE_MAX_NODE_LISTS_LEN];              //!< comma-separated string of nodes
 } homie_config_t;
 
 /**

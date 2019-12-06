@@ -48,7 +48,6 @@
 #define QOS_2 (2)
 #define RETAINED (1)
 #define NOT_RETAINED (0)
-#define HOMIE_NODE_NAME "esp"
 
 #if defined(CONFIG_IDF_TARGET_ESP32S2BETA)
 #define CHIP_NAME "ESP32-S2 Beta"
@@ -63,6 +62,7 @@
     } while (0)
 
 static const char *TAG = "HOMIE";
+static const char homie_node_name[] = "esp";
 static esp_mqtt_client_handle_t client;
 static homie_config_t *config;
 static EventGroupHandle_t *mqtt_group;
@@ -416,12 +416,27 @@ static esp_err_t homie_connected()
     ESP_ERROR_CHECK(_get_ip(ip_address, sizeof(ip_address)));
     esp_chip_info(&chip_info);
 
-
 #if defined(CONFIG_HOMIE_VERSION_4_0_0)
+    int ret;
+    char nodes[HOMIE_MAX_NODE_LISTS_LEN + sizeof(homie_node_name)];
+
+    if (strnlen(config->node_lists, HOMIE_MAX_NODE_LISTS_LEN) > 0) {
+        ret = snprintf(nodes, sizeof(nodes), "%s,%s", homie_node_name, config->node_lists);
+        if (ret < 0 || ret >= sizeof(nodes)) {
+            ESP_LOGE(TAG, "homie_connected(): node_lists too long");
+            goto fail;
+        }
+    } else {
+        if (strlcpy(nodes, homie_node_name, sizeof(homie_node_name)) >= sizeof(nodes)) {
+            ESP_LOGE(TAG, "homie_connected(): homie_node_name too long");
+            goto fail;
+        }
+    }
+
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$state", QOS_1, RETAINED, "init"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$homie", QOS_1, RETAINED, "4.0.1"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$name", QOS_1, RETAINED, config->device_name));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$nodes", QOS_1, RETAINED, HOMIE_NODE_NAME));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$nodes", QOS_1, RETAINED, nodes));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/$name", QOS_1, RETAINED, CHIP_NAME));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publishf("esp/$type", QOS_1, RETAINED, "rev: %d", chip_info.revision));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/$properties", QOS_1, RETAINED, "uptime,rssi,signal,freeheap"));
@@ -514,7 +529,7 @@ fail:
  * @param[in] attr Attribute name
  * @return -1 on error, The number of characters printed (see snprintf(3)).
  */
-static int topic_path_to_node_attribute(char *buf, size_t len, char *node, char *attr)
+static int topic_path_to_node_attribute(char *buf, const size_t len, const char *node, const char *attr)
 {
     int ret;
 #if defined(CONFIG_HOMIE_VERSION_4_0_0)
@@ -552,7 +567,7 @@ static void homie_task(void *pvParameter)
             }
         }
 
-        if (topic_path_to_node_attribute(buf, sizeof(buf), HOMIE_NODE_NAME, "uptime") < 0) {
+        if (topic_path_to_node_attribute(buf, sizeof(buf), homie_node_name, "uptime") < 0) {
             ESP_LOGW(TAG, "homie_task(): topic_path_to_node_attribute() failed: uptime");
         } else {
             msg_id = homie_publish_int(buf, QOS_1, RETAINED, esp_timer_get_time() / 1000000);
@@ -561,7 +576,7 @@ static void homie_task(void *pvParameter)
             }
         }
 
-        if (topic_path_to_node_attribute(buf, sizeof(buf), HOMIE_NODE_NAME, "rssi") < 0) {
+        if (topic_path_to_node_attribute(buf, sizeof(buf), homie_node_name, "rssi") < 0) {
             ESP_LOGW(TAG, "homie_task(): topic_path_to_node_attribute() failed: rssi");
         } else {
             msg_id = homie_publish_int(buf, QOS_1, RETAINED, rssi);
@@ -570,7 +585,7 @@ static void homie_task(void *pvParameter)
             }
         }
 
-        if (topic_path_to_node_attribute(buf, sizeof(buf), HOMIE_NODE_NAME, "signal") < 0) {
+        if (topic_path_to_node_attribute(buf, sizeof(buf), homie_node_name, "signal") < 0) {
             ESP_LOGW(TAG, "homie_task(): topic_path_to_node_attribute() failed: signal");
         } else {
 
@@ -583,7 +598,7 @@ static void homie_task(void *pvParameter)
             }
         }
 
-        if (topic_path_to_node_attribute(buf, sizeof(buf), HOMIE_NODE_NAME, "freeheap") < 0) {
+        if (topic_path_to_node_attribute(buf, sizeof(buf), homie_node_name, "freeheap") < 0) {
             ESP_LOGW(TAG, "homie_task(): topic_path_to_node_attribute() failed: freeheap");
         } else {
             msg_id = homie_publish_int(buf, QOS_1, RETAINED, esp_get_free_heap_size());
