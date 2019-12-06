@@ -89,7 +89,7 @@ void do_ota(const char *uri, const char *cert_pem)
     }
 
     ESP_LOGI(TAG, "Fetching the update");
-    printf("URL: %s\n", CONFIG_PROJECT_LATEST_APP_URL);
+    printf("URL: %s\n", uri);
 
     err = esp_http_client_open(client, 0);
     if (err != ESP_OK) {
