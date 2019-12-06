@@ -41,7 +41,7 @@
 #include "freertos/event_groups.h"
 
 #include "homie.h"
-#include "ota.h"
+#include "task_ota.h"
 
 #define QOS_0 (0)
 #define QOS_1 (1)
@@ -147,7 +147,7 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
         char *url = calloc(1, event->data_len + 1);
         strncpy(url, event->data, event->data_len);
         url[event->data_len] = '\0';
-        ota_init(url, config->cert_pem, config->ota_status_handler);
+        do_ota(url, config->cert_pem);
         return;
     }
 
