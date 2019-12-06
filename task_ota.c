@@ -10,6 +10,14 @@
 
 #include <string.h>
 #include <freertos/FreeRTOS.h>
+
+#if defined(ESP_IDF_VERSION_MAJOR) // defined in esp-idf 4.x, but not 3.x
+#define HOMIE_IDF_VERSION4
+#else
+#define HOMIE_IDF_VERSION3
+#endif
+
+#if defined HOMIE_IDF_VERSION4
 #include <freertos/task.h>
 #include <esp_system.h>
 #include <esp_event.h>
@@ -196,3 +204,4 @@ void do_ota(const char *uri, const char *cert_pem)
     ESP_LOGI(TAG, "Prepare to restart system!");
     esp_restart();
 }
+#endif // HOMIE_IDF_VERSION4
