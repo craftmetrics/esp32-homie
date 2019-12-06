@@ -23,10 +23,10 @@
  */
 
 #include <stdarg.h>
-#include "freertos/FreeRTOS.h" // need to include this here for CONFIG_IDF_TARGET_ESP32
+#include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
-#if defined(CONFIG_IDF_TARGET_ESP32) // defined in esp-idf 4.x, but not 3.x
+#if defined(ESP_IDF_VERSION_MAJOR) // defined in esp-idf 4.x, but not 3.x
 #define HOMIE_IDF_VERSION4
 #else
 #define HOMIE_IDF_VERSION3
