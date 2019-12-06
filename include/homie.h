@@ -58,6 +58,7 @@ typedef struct
     char firmware_name[HOMIE_MAX_FIRMWARE_NAME_LEN];        //!< Firmware name
     char firmware_version[HOMIE_MAX_FIRMWARE_VERSION_LEN];  //!< Firmware version
     bool ota_enabled;                                       //!< Enable or disable OTA
+    bool reboot_enabled;                                    //!< Enable or disable `reboot` command
     const char *cert_pem;                                   //!< TLS certificate
     void (*msg_handler)(char *, char *);                    //!< msg_handler
     void (*connected_handler)();                            //!< connected_handler
@@ -76,7 +77,13 @@ typedef struct
  */
 esp_mqtt_client_handle_t homie_init(homie_config_t *config);
 
-void homie_subscribe(const char *subtopic);
+/**
+ * @brief Subscribe to a topic under base topic
+ *
+ * @param subtopic Topic name to subscribe to
+ * @return -1 on error, message ID on success.
+ */
+int homie_subscribe(const char *subtopic);
 
 /**
  * @brief Publish a message

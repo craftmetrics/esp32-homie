@@ -97,11 +97,20 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
 
     // Check if it is reboot command
     char topic[HOMIE_MAX_TOPIC_LEN];
+#if defined(CONFIG_HOMIE_VERSION_2_0_1)
     ESP_ERROR_CHECK(homie_mktopic(topic, "$implementation/reboot"));
     if ((strncmp(topic, event->topic, event->topic_len) == 0) && (strncmp("true", event->data, event->data_len) == 0))
+#elif defined(CONFIG_HOMIE_VERSION_4_0_0)
+    ESP_ERROR_CHECK(homie_mktopic(topic, "esp/reboot/set"));
+    if ((strncmp(topic, event->topic, event->topic_len) == 0) && (strncmp("reboot", event->data, event->data_len) == 0))
+#else
+#error "Homie version is not set"
+#endif
     {
-        ESP_LOGI(TAG, "Rebooting...");
-        esp_restart();
+        if (config->reboot_enabled) {
+            ESP_LOGI(TAG, "Rebooting...");
+            esp_restart();
+        }
         return;
     }
 
@@ -125,8 +134,15 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     }
 
     // Check if it is a OTA update
+#if defined(CONFIG_HOMIE_VERSION_2_0_1)
     ESP_ERROR_CHECK(homie_mktopic(topic, "$implementation/ota/url"));
-    if (_starts_with(topic, event->topic, event->topic_len))
+    if (_starts_with(topic, event->topic, event->topic_len) && strncmp("true", event->data, event->data_len) == 0)
+#elif defined(CONFIG_HOMIE_VERSION_4_0_0)
+    ESP_ERROR_CHECK(homie_mktopic(topic, "esp/ota/set"));
+    if (_starts_with(topic, event->topic, event->topic_len) && strncmp("run", event->data, event->data_len) == 0)
+#else
+#error "Homie version is not set"
+#endif
     {
         char *url = calloc(1, event->data_len + 1);
         strncpy(url, event->data, event->data_len);
@@ -268,14 +284,21 @@ fail:
     return ESP_FAIL;
 }
 
-void homie_subscribe(const char *subtopic)
+int homie_subscribe(const char *subtopic)
 {
     int msg_id;
     char topic[HOMIE_MAX_TOPIC_LEN];
     ESP_ERROR_CHECK(homie_mktopic(topic, subtopic));
 
     msg_id = esp_mqtt_client_subscribe(client, topic, 0);
-    ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
+    if (msg_id < 0) {
+        ESP_LOGW(TAG, "esp_mqtt_client_subscribe() failed: topic: `%s`", topic);
+        goto fail;
+    }
+    ESP_LOGI(TAG, "sent subscribe successful, topic: `%s` msg_id=%d", topic, msg_id);
+    return msg_id;
+fail:
+    return -1;
 }
 
 int homie_publish(const char *subtopic, int qos, int retain, const char *payload)
@@ -439,7 +462,7 @@ static esp_err_t homie_connected()
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$nodes", QOS_1, RETAINED, nodes));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/$name", QOS_1, RETAINED, CHIP_NAME));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publishf("esp/$type", QOS_1, RETAINED, "rev: %d", chip_info.revision));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/$properties", QOS_1, RETAINED, "uptime,rssi,signal,freeheap,mac,ip,sdk,firmware,firmware_version"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/$properties", QOS_1, RETAINED, "uptime,rssi,signal,freeheap,mac,ip,sdk,firmware,firmware_version,ota,reboot"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/uptime/$name", QOS_1, RETAINED, "Uptime since boot"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/uptime/$datatype", QOS_1, RETAINED, "integer"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/rssi/$name", QOS_1, RETAINED, "WiFi RSSI"));
@@ -463,6 +486,24 @@ static esp_err_t homie_connected()
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/firmware_version/$name", QOS_1, RETAINED, "Firmware version"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/firmware_version/$datatype", QOS_1, RETAINED, "string"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/firmware_version", QOS_1, RETAINED, config->firmware_version));
+
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/$name", QOS_1, RETAINED, "OTA state"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/$datatype", QOS_1, RETAINED, "enum"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/$settable", QOS_1, RETAINED, config->ota_enabled ? "true" : "false"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/$format", QOS_1, RETAINED, "idle,disabled,run"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota", QOS_1, RETAINED, config->ota_enabled ? "idle" : "disabled"));
+    if (config->ota_enabled && homie_subscribe("esp/ota/set") < 0) {
+        ESP_LOGE(TAG, "failed to subscribe esp/ota/set");
+    }
+
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot/$name", QOS_1, RETAINED, "Reboot state"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot/$datatype", QOS_1, RETAINED, "enum"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot/$settable", QOS_1, RETAINED, config->reboot_enabled ? "true" : "false"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot/$format", QOS_1, RETAINED, "disabled,enabled,reboot"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot", QOS_1, RETAINED, config->reboot_enabled ? "enabled" : "disabled"));
+    if (config->reboot_enabled && homie_subscribe("esp/reboot/set") < 0) {
+        ESP_LOGE(TAG, "failed to subscribe esp/reboot/set");
+    }
 
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$state", QOS_1, RETAINED, "ready"));
 #elif defined(CONFIG_HOMIE_VERSION_2_0_1)
