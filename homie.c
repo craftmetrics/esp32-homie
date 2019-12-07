@@ -100,6 +100,7 @@ static int _homie_logger(const char *str, va_list l)
 
 static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
 {
+    esp_err_t err;
     ESP_LOGD(TAG, "topic: %s length: %d data length: %d", event->topic, event->topic_len, event->data_len);
 
     // Check if it is reboot command
@@ -140,11 +141,14 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
         if (homie_publish("esp/ota", QOS_1, RETAINED, "running") == 0) {
             ESP_LOGW(TAG, "failed to set esp/ota to `running`");
         }
-        do_ota(config->ota_uri, config->cert_pem);
+        err = do_ota(config->ota_uri, config->cert_pem);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "do_ota() failed");
+        }
         if (homie_publish("esp/ota", QOS_1, RETAINED, "enabled") == 0) {
             ESP_LOGW(TAG, "failed to set esp/ota to `enabled`");
         }
-        return;
+        goto finish;
     }
 
     // Call the application's handler
@@ -165,6 +169,8 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
         free(subtopic);
         free(payload);
     }
+finish:
+    return;
 }
 
 static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
@@ -305,7 +311,7 @@ int homie_publish(const char *subtopic, int qos, int retain, const char *payload
         ESP_LOGW(TAG, "homie_mktopic() failed");
         goto fail;
     }
-    ESP_LOGD(TAG, "%s\n", topic);
+    ESP_LOGD(TAG, "topic `%s` payload: `%s`", topic, payload);
     msg_id = esp_mqtt_client_publish(client, topic, payload, 0, qos, retain);
 fail:
     return msg_id;

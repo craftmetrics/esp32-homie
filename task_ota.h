@@ -14,7 +14,8 @@
  *
  * @param uri URI to firmware file
  * @param cert_pem Certificate
+ * @return ESP_FAIL on error, ESP_OK on success or no update is required
  */
-void do_ota(const char *uri, const char *cert_pem);
+esp_err_t do_ota(const char *uri, const char *cert_pem);
 
 #endif
