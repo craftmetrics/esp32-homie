@@ -83,9 +83,10 @@ esp_mqtt_client_handle_t homie_init(homie_config_t *config);
  * @brief Subscribe to a topic under base topic
  *
  * @param subtopic Topic name to subscribe to
+ * @param qos QoS. 0, 1, or 2
  * @return -1 on error, message ID on success.
  */
-int homie_subscribe(const char *subtopic);
+int homie_subscribe(const char *subtopic, const int qos);
 
 /**
  * @brief Publish a message

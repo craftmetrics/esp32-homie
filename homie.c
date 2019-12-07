@@ -111,9 +111,13 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     {
         if (config->reboot_enabled) {
             ESP_LOGI(TAG, "Rebooting...");
+            if (homie_publish("esp/reboot", QOS_1, RETAINED, "rebooting") == 0) {
+                ESP_LOGE(TAG, "homie_publish() failed");
+            }
             esp_restart();
+            while (1) {}
         }
-        return;
+        goto finish;
     }
 
     // Check if it is enable remote console
@@ -132,7 +136,7 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
             esp_log_set_vprintf(vprintf);
             ESP_LOGI(TAG, "Remote logging disabled");
         }
-        return;
+        goto finish;
     }
 
     // Check if it is a OTA update
@@ -287,13 +291,17 @@ fail:
     return ESP_FAIL;
 }
 
-int homie_subscribe(const char *subtopic)
+int homie_subscribe(const char *subtopic, const int qos)
 {
     int msg_id;
     char topic[HOMIE_MAX_TOPIC_LEN];
+    if (qos < 0 || qos > 2) {
+        ESP_LOGE(TAG, "invalid QoS: %d", qos);
+        goto fail;
+    }
     ESP_ERROR_CHECK(homie_mktopic(topic, subtopic, sizeof(topic)));
 
-    msg_id = esp_mqtt_client_subscribe(client, topic, 0);
+    msg_id = esp_mqtt_client_subscribe(client, topic, qos);
     if (msg_id < 0) {
         ESP_LOGW(TAG, "esp_mqtt_client_subscribe() failed: topic: `%s`", topic);
         goto fail;
@@ -494,16 +502,16 @@ static esp_err_t homie_connected()
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/$settable", QOS_1, RETAINED, config->ota_enabled ? "true" : "false"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/$format", QOS_1, RETAINED, "idle,disabled,running,run"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota", QOS_1, RETAINED, config->ota_enabled ? "idle" : "disabled"));
-    if (config->ota_enabled && homie_subscribe("esp/ota/set") < 0) {
+    if (config->ota_enabled && homie_subscribe("esp/ota/set", QOS_1) < 0) {
         ESP_LOGE(TAG, "failed to subscribe esp/ota/set");
     }
 
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot/$name", QOS_1, RETAINED, "Reboot state"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot/$datatype", QOS_1, RETAINED, "enum"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot/$settable", QOS_1, RETAINED, config->reboot_enabled ? "true" : "false"));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot/$format", QOS_1, RETAINED, "disabled,enabled,reboot"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot/$format", QOS_1, RETAINED, "disabled,enabled,rebooting,reboot"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot", QOS_1, RETAINED, config->reboot_enabled ? "enabled" : "disabled"));
-    if (config->reboot_enabled && homie_subscribe("esp/reboot/set") < 0) {
+    if (config->reboot_enabled && homie_subscribe("esp/reboot/set", QOS_1) < 0) {
         ESP_LOGE(TAG, "failed to subscribe esp/reboot/set");
     }
 
