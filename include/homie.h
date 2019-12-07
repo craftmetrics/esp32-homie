@@ -137,8 +137,9 @@ int homie_publish_bool(const char *subtopic, int qos, int retain, const bool pay
  *
  * @param[out] topic Pointer to MQTT topic to be created
  * @param[in] subtopic Topic path under base_topic
+ * @param[in] topic_size Size of topic
  * @return ESP_OK if no error, else ESP_FAIL
  */
-esp_err_t homie_mktopic(char *topic, const char *subtopic);
+esp_err_t homie_mktopic(char *topic, const char *subtopic, const size_t topic_size);
 
 #endif // CM_ESP32_HOMIE_H

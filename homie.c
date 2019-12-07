@@ -55,6 +55,7 @@
 #define QOS_2 (2)
 #define RETAINED (1)
 #define NOT_RETAINED (0)
+#define AUTO_LENGTH (0)
 
 #if defined(CONFIG_IDF_TARGET_ESP32S2BETA)
 #define CHIP_NAME "ESP32-S2 Beta"
@@ -105,7 +106,7 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
 
     // Check if it is reboot command
     char topic[HOMIE_MAX_TOPIC_LEN];
-    ESP_ERROR_CHECK(homie_mktopic(topic, "esp/reboot/set"));
+    ESP_ERROR_CHECK(homie_mktopic(topic, "esp/reboot/set", sizeof(topic)));
     if ((strncmp(topic, event->topic, event->topic_len) == 0) && (strncmp("reboot", event->data, event->data_len) == 0))
     {
         if (config->reboot_enabled) {
@@ -116,7 +117,7 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     }
 
     // Check if it is enable remote console
-    ESP_ERROR_CHECK(homie_mktopic(topic, "$implementation/logging"));
+    ESP_ERROR_CHECK(homie_mktopic(topic, "$implementation/logging", sizeof(topic)));
     if (strncmp(topic, event->topic, event->topic_len) == 0)
     {
         if (strncmp("true", event->data, event->data_len) == 0)
@@ -135,7 +136,7 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     }
 
     // Check if it is a OTA update
-    ESP_ERROR_CHECK(homie_mktopic(topic, "esp/ota/set"));
+    ESP_ERROR_CHECK(homie_mktopic(topic, "esp/ota/set", sizeof(topic)));
     if (config->ota_enabled && _starts_with(topic, event->topic, event->topic_len) && strncmp("run", event->data, event->data_len) == 0)
     {
         if (homie_publish("esp/ota", QOS_1, RETAINED, "running") == 0) {
@@ -152,7 +153,7 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     }
 
     // Call the application's handler
-    ESP_ERROR_CHECK(homie_mktopic(topic, ""));
+    ESP_ERROR_CHECK(homie_mktopic(topic, "", sizeof(topic)));
     if (config->msg_handler)
     {
         int subtopic_len = event->topic_len - strlen(topic);
@@ -228,7 +229,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 static esp_mqtt_client_handle_t mqtt_app_start(void)
 {
-    char *lwt_topic = calloc(1, HOMIE_MAX_TOPIC_LEN);
+    char lwt_topic[HOMIE_MAX_TOPIC_LEN];
     esp_err_t err;
 
     ESP_LOGI(TAG, "URI: `%s`", config->mqtt_uri);
@@ -237,7 +238,7 @@ static esp_mqtt_client_handle_t mqtt_app_start(void)
     ESP_LOGI(TAG, "base_topic: `%s`", config->base_topic);
     ESP_LOGI(TAG, "stack_size: %d", config->stack_size);
 
-    ESP_ERROR_CHECK(homie_mktopic(lwt_topic, "$online"));
+    ESP_ERROR_CHECK(homie_mktopic(lwt_topic, "$online", sizeof(lwt_topic)));
 
     esp_mqtt_client_config_t mqtt_cfg = {
         .client_id = config->client_id,
@@ -271,14 +272,14 @@ fail:
     return NULL;
 }
 
-esp_err_t homie_mktopic(char *topic, const char *subtopic)
+esp_err_t homie_mktopic(char *topic, const char *subtopic, const size_t topic_size)
 {
-    int ret = snprintf(topic, HOMIE_MAX_TOPIC_LEN, "%s/%s/%s",
+    int ret = snprintf(topic, topic_size, "%s/%s/%s",
             config->base_topic, config->client_id, subtopic);
 
-    if (ret < 0 || ret >= HOMIE_MAX_TOPIC_LEN) {
-        ESP_LOGE(TAG, "homie_mktopic(): MQTT topic length is too long: ret: %d, HOMIE_MAX_TOPIC_LEN %d",
-                ret, HOMIE_MAX_TOPIC_LEN);
+    if (ret < 0 || ret >= topic_size) {
+        ESP_LOGE(TAG, "homie_mktopic(): topic is too short: ret: %d, topic_size: %d",
+                ret, topic_size);
         goto fail;
     }
     return ESP_OK;
@@ -290,7 +291,7 @@ int homie_subscribe(const char *subtopic)
 {
     int msg_id;
     char topic[HOMIE_MAX_TOPIC_LEN];
-    ESP_ERROR_CHECK(homie_mktopic(topic, subtopic));
+    ESP_ERROR_CHECK(homie_mktopic(topic, subtopic, sizeof(topic)));
 
     msg_id = esp_mqtt_client_subscribe(client, topic, 0);
     if (msg_id < 0) {
@@ -307,12 +308,12 @@ int homie_publish(const char *subtopic, int qos, int retain, const char *payload
 {
     int msg_id = -1;
     char topic[HOMIE_MAX_TOPIC_LEN];
-    if (homie_mktopic(topic, subtopic) != ESP_OK) {
+    if (homie_mktopic(topic, subtopic, sizeof(topic)) != ESP_OK) {
         ESP_LOGW(TAG, "homie_mktopic() failed");
         goto fail;
     }
     ESP_LOGD(TAG, "topic `%s` payload: `%s`", topic, payload);
-    msg_id = esp_mqtt_client_publish(client, topic, payload, 0, qos, retain);
+    msg_id = esp_mqtt_client_publish(client, topic, payload, AUTO_LENGTH, qos, retain);
 fail:
     return msg_id;
 }
