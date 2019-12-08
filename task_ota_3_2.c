@@ -26,6 +26,8 @@
 #define BUFFSIZE 1024
 #define HASH_LEN 32 /* SHA-256 digest length */
 
+int ota_in_progress = 0;
+
 static const char *TAG = "native_ota_example";
 /*an ota data write buffer ready to write to the flash*/
 static char ota_write_data[BUFFSIZE + 1] = { 0 };
@@ -133,4 +135,26 @@ void do_ota(const char *uri, const char *cert_pem)
     esp_restart();
 finish:
     return;
+}
+
+esp_err_t start_ota(esp_http_client_config_t config)
+{
+    ESP_LOGI(TAG, "Starting OTA");
+
+    // FIXME use mutex here
+    if (ota_in_progress) {
+        ESP_LOGW(TAG, "another OTA task is running");
+        goto fail;
+    }
+    ota_in_progress = 1;
+    if (xTaskCreate(&do_ota, "do_ota", configMINIMAL_STACK_SIZE * 20, (void *)&config, 5, NULL) != pdPASS) {
+        ESP_LOGE(TAG, "xTaskCreate() failed");
+        goto fail;
+    }
+    while (ota_in_progress == 1) {
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+    }
+    return ESP_OK;
+fail:
+    return ESP_FAIL;
 }

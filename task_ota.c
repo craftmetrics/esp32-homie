@@ -215,7 +215,9 @@ esp_err_t start_ota(esp_http_client_config_t config)
         ESP_LOGE(TAG, "xTaskCreate() failed");
         goto fail;
     }
-    while (ota_in_progress) {}
+    while (ota_in_progress == 1) {
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+    }
     return ESP_OK;
 fail:
     return ESP_FAIL;

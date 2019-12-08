@@ -2,10 +2,11 @@
 #define __TASK_OTA_3_2__H__
 
 /**
- * @brief Run OTA
+ * @brief Do OTA process
  *
- * @param uri URI to the firmware file
- * @param cert_pem content of the certificate
+ * @param config HTTP config
+ * @return ESP_FAIL on error, ESP_OK on success or no update is required
  */
-void do_ota(const char *uri, const char *cert_pem);
+esp_err_t start_ota(esp_http_client_config_t config);
+
 #endif
