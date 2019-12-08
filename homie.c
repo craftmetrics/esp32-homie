@@ -512,7 +512,7 @@ static esp_err_t _get_mac(char *mac_string, size_t len, bool sep)
         ret = snprintf(mac_string, len, "%02X:%02X:%02X:%02X:%02X:%02X",
                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     else
-        ret = snprintf(mac_string, len, "%x%x%x%x%x%x",
+        ret = snprintf(mac_string, len, "%02X%02X%02X%02X%02X%02X",
                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     if (ret < 0 || ret >= len) {
         ESP_LOGE(TAG, "_get_mac(): mac_string too short");
