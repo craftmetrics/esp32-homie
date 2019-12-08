@@ -37,6 +37,7 @@
 #define UPDATE_CHECK_INTERVAL_SEC (60)
 
 static const char *TAG = "task_ota";
+int ota_in_progress = 0;
 
 /* an ota data write buffer ready to write to the flash */
 static char ota_write_data[BUFFSIZE + 1] = { 0 };
@@ -49,20 +50,18 @@ static void http_cleanup(esp_http_client_handle_t client)
     esp_http_client_cleanup(client);
 }
 
-esp_err_t do_ota(const char *uri, const char *cert_pem)
+static void do_ota(void *pvParameter)
 {
     const esp_partition_t *update_partition = NULL;
     const esp_partition_t *configured = NULL;
     const esp_partition_t *running = NULL;
+    esp_http_client_config_t *config = (esp_http_client_config_t *)pvParameter;
+    printf("URL: %s", config->url);
 
     /* deal with all receive packet */
     bool image_header_was_checked = false;
     int binary_file_length = 0;
     esp_err_t err;
-    esp_http_client_config_t config = {
-        .url = uri,
-        .cert_pem = cert_pem ? cert_pem : NULL,
-    };
 
     esp_http_client_handle_t client;
 
@@ -81,7 +80,7 @@ esp_err_t do_ota(const char *uri, const char *cert_pem)
     ESP_LOGI(TAG, "Running partition type %d subtype %d (offset 0x%08x)",
              running->type, running->subtype, running->address);
 
-    client = esp_http_client_init(&config);
+    client = esp_http_client_init(config);
     if (client == NULL) {
         ESP_LOGE(TAG, "Failed to initialise HTTP connection");
         err = ESP_FAIL;
@@ -89,7 +88,7 @@ esp_err_t do_ota(const char *uri, const char *cert_pem)
     }
 
     ESP_LOGI(TAG, "Fetching the update");
-    printf("firmware URL: %s\n", uri);
+    printf("firmware URL: %s\n", config->url);
 
     err = esp_http_client_open(client, 0);
     if (err != ESP_OK) {
@@ -194,11 +193,32 @@ esp_err_t do_ota(const char *uri, const char *cert_pem)
     while (1) {}
     /* NOT REACHED */
 no_need_to_update:
-    err = ESP_OK;
 fail:
     if (client != NULL) {
         http_cleanup(client);
     }
-    return err;
+    ota_in_progress = 0;
+    vTaskDelete(NULL);
 }
+
+esp_err_t start_ota(esp_http_client_config_t config)
+{
+    ESP_LOGI(TAG, "Starting OTA");
+
+    // FIXME use mutex here
+    if (ota_in_progress) {
+        ESP_LOGW(TAG, "another OTA task is running");
+        goto fail;
+    }
+    ota_in_progress = 1;
+    if (xTaskCreate(&do_ota, "do_ota", configMINIMAL_STACK_SIZE * 20, (void *)&config, 5, NULL) != pdPASS) {
+        ESP_LOGE(TAG, "xTaskCreate() failed");
+        goto fail;
+    }
+    while (ota_in_progress) {}
+    return ESP_OK;
+fail:
+    return ESP_FAIL;
+}
+
 #endif // HOMIE_IDF_VERSION4

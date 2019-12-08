@@ -12,10 +12,9 @@
 /**
  * @brief Do OTA process
  *
- * @param uri URI to firmware file
- * @param cert_pem Certificate
+ * @param config HTTP config
  * @return ESP_FAIL on error, ESP_OK on success or no update is required
  */
-esp_err_t do_ota(const char *uri, const char *cert_pem);
+esp_err_t start_ota(esp_http_client_config_t config);
 
 #endif

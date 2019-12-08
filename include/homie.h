@@ -28,10 +28,12 @@
 #include <esp_err.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
+#include <esp_http_client.h>
 #include "mqtt_client.h"
 
 #define HOMIE_MAX_URI_LEN               (64)
 #define HOMIE_MAX_TOPIC_LEN (512)
+#define HOMIE_MAX_DATA_LEN (256)
 #define HOMIE_MAX_MQTT_URI_LEN          HOMIE_MAX_URI_LEN
 #define HOMIE_MAX_MQTT_USERNAME_LEN (32)
 #define HOMIE_MAX_MQTT_PASSWORD_LEN (32)
@@ -59,9 +61,8 @@ typedef struct
     char firmware_name[HOMIE_MAX_FIRMWARE_NAME_LEN];        //!< Firmware name
     char firmware_version[HOMIE_MAX_FIRMWARE_VERSION_LEN];  //!< Firmware version
     bool ota_enabled;                                       //!< Enable or disable OTA
-    char ota_uri[HOMIE_MAX_URI_LEN];                        //!< URI to firmware file
     bool reboot_enabled;                                    //!< Enable or disable `reboot` command
-    const char *cert_pem;                                   //!< TLS certificate
+    esp_http_client_config_t http_config;                   //!< HTTP config
     void (*msg_handler)(char *, char *);                    //!< msg_handler
     void (*connected_handler)();                            //!< connected_handler
     void (*ota_status_handler)(int);                        //!< ota_status_handler

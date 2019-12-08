@@ -99,87 +99,104 @@ static int _homie_logger(const char *str, va_list l)
     return vprintf(str, l);
 }
 
-static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
+static void handle_command(const char *topic, const char *data)
 {
     esp_err_t err;
-    ESP_LOGD(TAG, "topic: %s length: %d data length: %d", event->topic, event->topic_len, event->data_len);
+    char topic_reboot[HOMIE_MAX_TOPIC_LEN];
+    char topic_ota[HOMIE_MAX_TOPIC_LEN];
+    char command_reboot[] = "reboot";
+    char command_ota[] = "run";
 
-    // Check if it is reboot command
-    char topic[HOMIE_MAX_TOPIC_LEN];
-    ESP_ERROR_CHECK(homie_mktopic(topic, "esp/reboot/set", sizeof(topic)));
-    if ((strncmp(topic, event->topic, event->topic_len) == 0) && (strncmp("reboot", event->data, event->data_len) == 0))
-    {
-        if (config->reboot_enabled) {
-            ESP_LOGI(TAG, "Rebooting...");
+    ESP_ERROR_CHECK(homie_mktopic(topic_reboot, "esp/reboot/set", sizeof(topic_reboot)));
+    ESP_ERROR_CHECK(homie_mktopic(topic_ota, "esp/ota/set", sizeof(topic_ota)));
+    ESP_LOGI(TAG, "topic_ota: %s", topic_ota);
+    ESP_LOGI(TAG, "topic_reboot: %s", topic_reboot);
+
+
+    if (topic == NULL || data == NULL) {
+        ESP_LOGE(TAG, "topic or data is NULL");
+        goto fail;
+    }
+    if (strncmp(topic_ota, topic, HOMIE_MAX_TOPIC_LEN) == 0) {
+        if (!config->ota_enabled) {
+            goto finish;
+        }
+        if (strncmp(command_ota, data, HOMIE_MAX_DATA_LEN) == 0) {
+            if (homie_publish("esp/ota", QOS_1, RETAINED, command_ota) == 0) {
+                ESP_LOGW(TAG, "failed to set esp/ota to `run`");
+            }
+
+            /* clear retained message.
+             *
+             * the spec does not require this, but some implementations set
+             * retained MQTT message. if the message is retained, the device
+             * keep executing same command. another workaround would be
+             * ignoring command messages with retained flag set. but the MQTT
+             * library does not provide a function to access retained flag.
+             */
+            if (homie_publish("esp/ota/set", QOS_1, NOT_RETAINED, "") == 0) {
+                ESP_LOGE(TAG, "homie_publish() failed");
+            }
+            if (homie_publish("esp/ota", QOS_1, RETAINED, "running") == 0) {
+                ESP_LOGW(TAG, "failed to set esp/ota to `running`");
+            }
+
+            /* start_ota() never return when OTA is performed and successful */
+            ESP_LOGI(TAG, "Starting OTA");
+            err = start_ota(config->http_config);
+            if (err != ESP_OK) {
+                ESP_LOGW(TAG, "start_ota() failed");
+            }
+            if (homie_publish("esp/ota", QOS_1, RETAINED, "idle") == 0) {
+                ESP_LOGW(TAG, "failed to set esp/ota to `idle`");
+            }
+            ESP_LOGI(TAG, "OTA finished");
+            goto finish;
+        } else if (*data == '\0') {
+
+            /* ignore NULL command */
+            goto finish;
+        } else {
+            ESP_LOGW(TAG, "Unknown command for command topic: %s data: `%s`", topic_ota, data);
+        }
+    } else if (strncmp(topic_reboot, topic, HOMIE_MAX_TOPIC_LEN) == 0) {
+        if (!config->reboot_enabled) {
+            goto finish;
+        }
+        if (strncmp(command_reboot, data, HOMIE_MAX_DATA_LEN) == 0) {
+
+            if (homie_publish("esp/reboot/set", QOS_1, NOT_RETAINED, "") == 0) {
+                ESP_LOGE(TAG, "homie_publish() failed");
+            }
+            if (homie_publish("esp/reboot", QOS_1, RETAINED, "reboot") == 0) {
+                ESP_LOGE(TAG, "homie_publish() failed");
+            }
             if (homie_publish("esp/reboot", QOS_1, RETAINED, "rebooting") == 0) {
                 ESP_LOGE(TAG, "homie_publish() failed");
             }
+            ESP_LOGI(TAG, "Rebooting...");
+            vTaskDelay(3000 / portTICK_PERIOD_MS);
             esp_restart();
             while (1) {}
-        }
-        goto finish;
-    }
 
-    // Check if it is enable remote console
-    ESP_ERROR_CHECK(homie_mktopic(topic, "$implementation/logging", sizeof(topic)));
-    if (strncmp(topic, event->topic, event->topic_len) == 0)
-    {
-        if (strncmp("true", event->data, event->data_len) == 0)
-        {
-            ESP_LOGI(TAG, "Enable remote logging");
-            esp_log_set_vprintf(_homie_logger);
-            ESP_LOGI(TAG, "Remote logging enabled");
+            /* NOT REACHED */
+        } else {
+            ESP_LOGW(TAG, "Unknown command for command topic: %s data: `%s`", topic_reboot, data);
+            goto fail;
         }
-        else
-        {
-            ESP_LOGI(TAG, "Disable remote logging");
-            esp_log_set_vprintf(vprintf);
-            ESP_LOGI(TAG, "Remote logging disabled");
-        }
-        goto finish;
-    }
-
-    // Check if it is a OTA update
-    ESP_ERROR_CHECK(homie_mktopic(topic, "esp/ota/set", sizeof(topic)));
-    if (config->ota_enabled && _starts_with(topic, event->topic, event->topic_len) && strncmp("run", event->data, event->data_len) == 0)
-    {
-        if (homie_publish("esp/ota", QOS_1, RETAINED, "running") == 0) {
-            ESP_LOGW(TAG, "failed to set esp/ota to `running`");
-        }
-        err = do_ota(config->ota_uri, config->cert_pem);
-        if (err != ESP_OK) {
-            ESP_LOGW(TAG, "do_ota() failed");
-        }
-        if (homie_publish("esp/ota", QOS_1, RETAINED, "enabled") == 0) {
-            ESP_LOGW(TAG, "failed to set esp/ota to `enabled`");
-        }
-        goto finish;
-    }
-
-    // Call the application's handler
-    ESP_ERROR_CHECK(homie_mktopic(topic, "", sizeof(topic)));
-    if (config->msg_handler)
-    {
-        int subtopic_len = event->topic_len - strlen(topic);
-        char *subtopic = calloc(1, subtopic_len + 1);
-        strncpy(subtopic, event->topic + strlen(topic), subtopic_len);
-        subtopic[subtopic_len] = '\0';
-
-        char *payload = calloc(1, event->data_len + 1);
-        strncpy(payload, event->data, event->data_len);
-        payload[event->data_len] = '\0';
-
-        config->msg_handler(subtopic, payload);
-
-        free(subtopic);
-        free(payload);
+    } else {
+        ESP_LOGW(TAG, "Unknown topic: `%s`", topic);
     }
 finish:
+fail:
     return;
 }
 
 static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 {
+    static char *topic;
+    static char *data_text;
+
     switch (event->event_id)
     {
     case MQTT_EVENT_BEFORE_CONNECT:
@@ -196,7 +213,7 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
-        xEventGroupClearBits(*mqtt_group, HOMIE_MQTT_STATUS_UPDATE_REQUIRED);
+        xEventGroupClearBits(*mqtt_group, HOMIE_MQTT_CONNECTED_BIT);
         break;
 
     case MQTT_EVENT_SUBSCRIBED:
@@ -214,7 +231,69 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 
     case MQTT_EVENT_DATA:
         ESP_LOGI(TAG, "MQTT_EVENT_DATA");
-        homie_handle_mqtt_event(event);
+
+        /* the first event of data */
+        if (event->current_data_offset == 0) {
+            ESP_LOGD(TAG, "topic_len: %d total_data_len: %d",
+                    event->topic_len, event->total_data_len);
+
+            /* the first event that contains topic.
+             *
+             * event->topic and event->data are not null-terminated C
+             * string. allocate memory for topic_len + extra 1 byte for
+             * '\0'.
+             */
+            topic = malloc(event->topic_len + 1);
+            if (topic == NULL) {
+                ESP_LOGE(TAG, "failed to malloc() on topic");
+                break;
+            }
+            memset(topic, 0, 1);
+
+            /* ignore return value of strlcpy(). it is almost always more
+             * than event->topic_len + 1, as event->topic is not C string.
+             */
+            strlcpy(topic, event->topic, event->topic_len + 1);
+            ESP_LOGD(TAG, "topic: `%s`", topic);
+
+            data_text = malloc(event->total_data_len + 1);
+            if (data_text == NULL) {
+                ESP_LOGE(TAG, "failed to malloc(): topic `%s`",
+                        topic);
+                goto free;
+            }
+            memset(data_text, 0, 1);
+
+        }
+
+        /* the first and the rest of events */
+        if (topic == NULL || data_text == NULL) {
+
+            /* when something went wrong in parsing the first event,
+             * ignore the rest of the events
+             */
+            goto free;
+        }
+
+        if (event->total_data_len > 0) {
+            strlcat(data_text, event->data, event->data_len + 1);
+        }
+
+        /* the last event */
+        if (event->current_data_offset + event->data_len >= event->total_data_len) {
+
+            if (topic == NULL || data_text == NULL) {
+                goto free;
+            }
+            ESP_LOGI(TAG, "topic: `%s` data: `%s`", topic, data_text);
+            handle_command(topic, data_text);
+            ESP_LOGI(TAG, "handle_command() ends");
+        }
+free:
+        free(topic);
+        topic = NULL;
+        free(data_text);
+        data_text = NULL;
         break;
 
     case MQTT_EVENT_ERROR:
@@ -242,7 +321,7 @@ static esp_mqtt_client_handle_t mqtt_app_start(void)
     ESP_LOGI(TAG, "base_topic: `%s`", config->base_topic);
     ESP_LOGI(TAG, "stack_size: %d", config->stack_size);
 
-    ESP_ERROR_CHECK(homie_mktopic(lwt_topic, "$online", sizeof(lwt_topic)));
+    ESP_ERROR_CHECK(homie_mktopic(lwt_topic, "$state", sizeof(lwt_topic)));
 
     esp_mqtt_client_config_t mqtt_cfg = {
         .client_id = config->client_id,
@@ -252,11 +331,11 @@ static esp_mqtt_client_handle_t mqtt_app_start(void)
 #if defined(HOMIE_IDF_VERSION3)
         .event_handle = mqtt_event_handler_cb,
 #endif
-        .lwt_msg = "false",
+        .lwt_msg = "lost",
         .lwt_retain = 1,
         .lwt_topic = lwt_topic,
         .keepalive = 15,
-        .cert_pem = config->cert_pem,
+        .cert_pem = config->http_config.cert_pem,
         .task_stack = config->stack_size,
     };
 
@@ -472,7 +551,7 @@ static esp_err_t homie_connected()
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$nodes", QOS_1, RETAINED, nodes));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/$name", QOS_1, RETAINED, CHIP_NAME));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publishf("esp/$type", QOS_1, RETAINED, "rev: %d", chip_info.revision));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/$properties", QOS_1, RETAINED, "uptime,rssi,signal,freeheap,mac,ip,sdk,firmware,firmware_version,ota,reboot"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/$properties", QOS_1, RETAINED, "uptime,rssi,signal,freeheap,mac,ip,sdk,firmware,firmware-version,ota,reboot"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/uptime/$name", QOS_1, RETAINED, "Uptime since boot"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/uptime/$datatype", QOS_1, RETAINED, "integer"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/rssi/$name", QOS_1, RETAINED, "WiFi RSSI"));
@@ -493,26 +572,35 @@ static esp_err_t homie_connected()
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/firmware/$name", QOS_1, RETAINED, "Firmware name"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/firmware/$datatype", QOS_1, RETAINED, "string"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/firmware", QOS_1, RETAINED, config->firmware_name));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/firmware_version/$name", QOS_1, RETAINED, "Firmware version"));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/firmware_version/$datatype", QOS_1, RETAINED, "string"));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/firmware_version", QOS_1, RETAINED, config->firmware_version));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/firmware-version/$name", QOS_1, RETAINED, "Firmware version"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/firmware-version/$datatype", QOS_1, RETAINED, "string"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/firmware-version", QOS_1, RETAINED, config->firmware_version));
 
+    /* topics that accept commands */
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/$name", QOS_1, RETAINED, "OTA state"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/$datatype", QOS_1, RETAINED, "enum"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/$settable", QOS_1, RETAINED, config->ota_enabled ? "true" : "false"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/$retained", QOS_1, RETAINED, "false")); // command message should NOT be retained
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/$format", QOS_1, RETAINED, "idle,disabled,running,run"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota", QOS_1, RETAINED, config->ota_enabled ? "idle" : "disabled"));
-    if (config->ota_enabled && homie_subscribe("esp/ota/set", QOS_1) < 0) {
-        ESP_LOGE(TAG, "failed to subscribe esp/ota/set");
-    }
 
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot/$name", QOS_1, RETAINED, "Reboot state"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot/$datatype", QOS_1, RETAINED, "enum"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot/$settable", QOS_1, RETAINED, config->reboot_enabled ? "true" : "false"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot/$retained", QOS_1, RETAINED, "false")); // command message should NOT be retained
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot/$format", QOS_1, RETAINED, "disabled,enabled,rebooting,reboot"));
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot", QOS_1, RETAINED, config->reboot_enabled ? "enabled" : "disabled"));
+
+    /* XXX override the value with NOT_RETAINED to clear RETAINED message
+     * before subscribing */
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot/set", QOS_1, NOT_RETAINED, ""));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/set", QOS_1, NOT_RETAINED, ""));
+
     if (config->reboot_enabled && homie_subscribe("esp/reboot/set", QOS_1) < 0) {
         ESP_LOGE(TAG, "failed to subscribe esp/reboot/set");
+    }
+    if (config->ota_enabled && homie_subscribe("esp/ota/set", QOS_1) < 0) {
+        ESP_LOGE(TAG, "failed to subscribe esp/ota/set");
     }
 
     FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$state", QOS_1, RETAINED, "ready"));
@@ -557,6 +645,7 @@ static void homie_task(void *pvParameter)
     int rssi;
     char buf[32 + 1];
 
+    homie_connected();
     while (1)
     {
         rssi = _get_wifi_rssi();
@@ -630,6 +719,7 @@ esp_mqtt_client_handle_t homie_init(homie_config_t *passed_config)
         ESP_LOGE(TAG, "mqtt_app_start(): failed");
         goto fail;
     }
+    ESP_LOGI(TAG, "Starting homie_task");
     if (xTaskCreate(&homie_task, "homie_task", configMINIMAL_STACK_SIZE * 10, NULL, 5, NULL) != pdPASS) {
         ESP_LOGE(TAG, "xTaskCreate() failed");
         goto fail;
