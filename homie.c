@@ -26,25 +26,21 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
-#if defined(ESP_IDF_VERSION_MAJOR) // defined in esp-idf 4.x, but not 3.x
-#define HOMIE_IDF_VERSION4
-#else
-#define HOMIE_IDF_VERSION3
-#endif
-
 #include <esp_log.h>
 #include <esp_system.h>
 #include <esp_wifi.h>
 #include <esp_ota_ops.h>
-#if defined(HOMIE_IDF_VERSION4)
+#include "esp_idf_lib_helpers.h"
+#if HELPER_TARGET_VERSION >= HELPER_TARGET_VERSION_ESP32_V4
 #include <esp_event.h>
 #else
 #include <esp_event_loop.h>
 #endif
 
 #include "homie.h"
-
-#if defined(HOMIE_IDF_VERSION4)
+#   32030200
+#   32040000
+#if HELPER_TARGET_VERSION >= HELPER_TARGET_VERSION_ESP32_V4
 #include "task_ota.h"
 #else
 #include "task_ota_3_2.h"
@@ -307,7 +303,7 @@ free:
     return ESP_OK;
 }
 
-#if defined(HOMIE_IDF_VERSION4)
+#if HELPER_TARGET_VERSION >= HELPER_TARGET_VERSION_ESP32_V4
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
     mqtt_event_handler_cb(event_data);
@@ -332,7 +328,7 @@ static esp_mqtt_client_handle_t mqtt_app_start(void)
         .uri = config->mqtt_uri,
         .username = config->mqtt_username,
         .password = config->mqtt_password,
-#if defined(HOMIE_IDF_VERSION3)
+#if HELPER_TARGET_VERSION < HELPER_TARGET_VERSION_ESP32_V4
         .event_handle = mqtt_event_handler_cb,
 #endif
         .lwt_msg = "lost",
@@ -347,7 +343,7 @@ static esp_mqtt_client_handle_t mqtt_app_start(void)
         ESP_LOGE(TAG, "esp_mqtt_client_init() failed");
         goto fail;
     }
-#if defined(HOMIE_IDF_VERSION4)
+#if HELPER_TARGET_VERSION >= HELPER_TARGET_VERSION_ESP32_V4
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, client);
 #endif
     if ((err = esp_mqtt_client_start(client)) != ESP_OK) {

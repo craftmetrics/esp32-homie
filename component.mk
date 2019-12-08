@@ -1,1 +1,2 @@
 # Use defaults
+COMPONENT_PRIV_INCLUDEDIRS := "."

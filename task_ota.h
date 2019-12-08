@@ -9,6 +9,9 @@
 #if !defined(__TASK_OTA__H__)
 #define __TASK_OTA__H__
 
+#include <esp_err.h>
+#include <esp_http_client.h>
+
 /**
  * @brief Do OTA process
  *

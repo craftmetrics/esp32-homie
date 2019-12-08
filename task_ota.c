@@ -11,14 +11,6 @@
 #include <string.h>
 #include <freertos/FreeRTOS.h>
 
-#if defined(ESP_IDF_VERSION_MAJOR) // defined in esp-idf 4.x, but not 3.x
-#define HOMIE_IDF_VERSION4
-#else
-#define HOMIE_IDF_VERSION3
-#endif
-
-#if defined HOMIE_IDF_VERSION4
-
 #include <freertos/task.h>
 #include <esp_system.h>
 #include <esp_event.h>
@@ -30,6 +22,10 @@
 #include <nvs.h>
 #include <nvs_flash.h>
 
+/* ignore if not esp-idf 4.x */
+#if HELPER_TARGET_VERSION >= HELPER_TARGET_VERSION_ESP32_V4
+
+#include "esp_idf_lib_helpers.h"
 #include "task_ota.h"
 
 #define BUFFSIZE (1024)
@@ -223,4 +219,4 @@ fail:
     return ESP_FAIL;
 }
 
-#endif // HOMIE_IDF_VERSION4
+#endif // HELPER_TARGET_VERSION >= HELPER_TARGET_VERSION_ESP32_V4

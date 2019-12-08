@@ -100,7 +100,7 @@ install:
       ;;
     make)
       export PROJECT_BUILD_COMMAND="make"
-      export PROJECT_BUILD_COMMAND_ARG="-j2"
+      export PROJECT_BUILD_COMMAND_ARG="-j2 DEBUG=1"
       ;;
     *)
       echo "Unknown PROJECT_BUILD_METHOD: ${PROJECT_BUILD_METHOD}"
