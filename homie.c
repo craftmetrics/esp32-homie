@@ -134,15 +134,15 @@ static void handle_command(const char *topic, const char *data)
              * ignoring command messages with retained flag set. but the MQTT
              * library does not provide a function to access retained flag.
              */
-            if (homie_publish("esp/ota/set", QOS_1, NOT_RETAINED, "") == 0) {
-                ESP_LOGE(TAG, "homie_publish() failed");
+            if (homie_remove_retained("esp/ota/set") <= 0) {
+                ESP_LOGE(TAG, "homie_remove_retained() failed");
             }
             if (homie_publish("esp/ota", QOS_1, RETAINED, "running") == 0) {
                 ESP_LOGW(TAG, "failed to set esp/ota to `running`");
             }
 
             /* start_ota() never return when OTA is performed and successful */
-            ESP_LOGI(TAG, "Starting OTA");
+            ESP_LOGD(TAG, "Starting OTA");
             err = start_ota(config->http_config);
             if (err != ESP_OK) {
                 ESP_LOGW(TAG, "start_ota() failed");
@@ -150,7 +150,7 @@ static void handle_command(const char *topic, const char *data)
             if (homie_publish("esp/ota", QOS_1, RETAINED, "idle") == 0) {
                 ESP_LOGW(TAG, "failed to set esp/ota to `idle`");
             }
-            ESP_LOGI(TAG, "OTA finished");
+            ESP_LOGD(TAG, "OTA finished");
             goto finish;
         } else if (*data == '\0') {
 
@@ -165,21 +165,25 @@ static void handle_command(const char *topic, const char *data)
         }
         if (strncmp(command_reboot, data, HOMIE_MAX_DATA_LEN) == 0) {
 
-            if (homie_publish("esp/reboot/set", QOS_1, NOT_RETAINED, "") == 0) {
-                ESP_LOGE(TAG, "homie_publish() failed");
-            }
             if (homie_publish("esp/reboot", QOS_1, RETAINED, "reboot") == 0) {
                 ESP_LOGE(TAG, "homie_publish() failed");
+            }
+            if (homie_remove_retained("esp/reboot/set") <= 0) {
+                ESP_LOGE(TAG, "homie_remove_retained() failed");
             }
             if (homie_publish("esp/reboot", QOS_1, RETAINED, "rebooting") == 0) {
                 ESP_LOGE(TAG, "homie_publish() failed");
             }
             ESP_LOGI(TAG, "Rebooting...");
-            vTaskDelay(3000 / portTICK_PERIOD_MS);
+            vTaskDelay(1000 * 10 / portTICK_PERIOD_MS);
             esp_restart();
             while (1) {}
 
             /* NOT REACHED */
+        } else if (*data == '\0') {
+
+            /* ignore NULL command */
+            goto finish;
         } else {
             ESP_LOGW(TAG, "Unknown command for command topic: %s data: `%s`", topic_reboot, data);
             goto fail;
@@ -285,9 +289,9 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
             if (topic == NULL || data_text == NULL) {
                 goto free;
             }
-            ESP_LOGI(TAG, "topic: `%s` data: `%s`", topic, data_text);
+            ESP_LOGD(TAG, "topic: `%s` data: `%s`", topic, data_text);
             handle_command(topic, data_text);
-            ESP_LOGI(TAG, "handle_command() ends");
+            ESP_LOGD(TAG, "handle_command() ends");
         }
 free:
         free(topic);
@@ -593,8 +597,8 @@ static esp_err_t homie_connected()
 
     /* XXX override the value with NOT_RETAINED to clear RETAINED message
      * before subscribing */
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/reboot/set", QOS_1, NOT_RETAINED, ""));
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("esp/ota/set", QOS_1, NOT_RETAINED, ""));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_remove_retained("esp/reboot/set"));
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_remove_retained("esp/ota/set"));
 
     if (config->reboot_enabled && homie_subscribe("esp/reboot/set", QOS_1) < 0) {
         ESP_LOGE(TAG, "failed to subscribe esp/reboot/set");
@@ -612,6 +616,11 @@ static esp_err_t homie_connected()
     return ESP_OK;
 fail:
     return ESP_FAIL;
+}
+
+int homie_remove_retained(const char *topic)
+{
+    return homie_publish(topic, QOS_1, RETAINED, "");
 }
 
 /**

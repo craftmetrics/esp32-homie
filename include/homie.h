@@ -144,4 +144,13 @@ int homie_publish_bool(const char *subtopic, int qos, int retain, const bool pay
  */
 esp_err_t homie_mktopic(char *topic, const char *subtopic, const size_t topic_size);
 
+/**
+ * @brief Remove a retained message
+ *
+ * @param[in] topic Topic name to remove retained message
+ * @return MQTT message ID on success, -1 on error
+ */
+
+int homie_remove_retained(const char *topic);
+
 #endif // CM_ESP32_HOMIE_H
