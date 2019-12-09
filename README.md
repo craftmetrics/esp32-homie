@@ -48,3 +48,10 @@ When remote logging is enabled, all calls to ESP_LOG\*() are published to `./log
 To enable remote logging, send `true` to `./$implementation/logging`. To disable, send `false`.
 
 Note that the default logger uses ANSI terminal colors in its log output, you may want to set `CONFIG_LOG_COLORS=n` in `sdkconfig` to disable this.
+
+## License
+
+All code is licensed under MIT license except:
+
+* `task_ota.c`, `task_ota_3_2.c` and their header files (Public Domain, or
+  [Creative Commons CC0](https://creativecommons.org/share-your-work/public-domain/cc0/))
