@@ -17,11 +17,6 @@ menu "Homie HTTP client"
             Currently supported versions:
               * 4.0.0
     endchoice
-    config HOMIE_MAX_URI_LEN
-        int "Max length of URI"
-        default 128
-        help
-            Maximum length, including NULL termination, of URIs
     config HOMIE_MAX_MQTT_TOPIC_LEN
         int "Max length of MQTT topic"
         default 512
@@ -32,16 +27,6 @@ menu "Homie HTTP client"
         default 256
         help
             Maximum length of data part of MQTT message.
-    config HOMIE_MAX_MQTT_USERNAME_LEN
-        int "Max length of MQTT user name"
-        default 32
-        help
-            Maximum length, including NULL termination, of MQTT user name.
-    config HOMIE_MAX_MQTT_PASSWORD_LEN
-        int "Max length of MQTT password"
-        default 32
-        help
-            Maximum length, including NULL termination, of MQTT password.
     config HOMIE_MAX_MQTT_CLIENT_ID_LEN
         int "Max length of MQTT client ID"
         default 32

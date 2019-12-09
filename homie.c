@@ -71,6 +71,8 @@ static EventGroupHandle_t *mqtt_group;
 SemaphoreHandle_t mutex_ota;
 
 static esp_err_t homie_connected();
+static esp_err_t _get_mac(char *mac_string, size_t len, bool sep);
+char client_id[HOMIE_MAX_MQTT_CLIENT_ID_LEN];
 
 static void handle_command(const char *topic, const char *data)
 {
@@ -298,9 +300,21 @@ static esp_mqtt_client_handle_t mqtt_app_start(void)
     char lwt_topic[HOMIE_MAX_MQTT_TOPIC_LEN];
     esp_err_t err;
 
-    ESP_LOGD(TAG, "MQTT URI: `%s`", config->mqtt_uri);
-    ESP_LOGD(TAG, "MQTT user name: `%s`", config->mqtt_username);
-    ESP_LOGD(TAG, "MQTT client ID: `%s`", config->client_id);
+    ESP_ERROR_CHECK(homie_mktopic(lwt_topic, "$state", sizeof(lwt_topic)));
+    ESP_LOGD(TAG, "lwt_topic: %s", lwt_topic);
+
+#if HELPER_TARGET_VERSION < HELPER_TARGET_VERSION_ESP32_V4
+    config->mqtt_config.event_handle = mqtt_event_handler_cb;
+#endif
+    /* fixed configurations */
+    config->mqtt_config.lwt_topic = lwt_topic;
+    config->mqtt_config.lwt_msg = "lost";
+    config->mqtt_config.lwt_qos = 1;
+    config->mqtt_config.lwt_retain = 1;
+
+    ESP_LOGD(TAG, "MQTT URI: `%s`", config->mqtt_config.uri);
+    ESP_LOGD(TAG, "MQTT user name: `%s`", config->mqtt_config.username);
+    ESP_LOGD(TAG, "MQTT client ID: `%s`", client_id);
     ESP_LOGD(TAG, "device_name: %s", config->device_name);
     ESP_LOGD(TAG, "MQTT base topic: `%s`", config->base_topic);
     ESP_LOGD(TAG, "Firmware name: `%s`", config->firmware_name);
@@ -308,34 +322,17 @@ static esp_mqtt_client_handle_t mqtt_app_start(void)
     ESP_LOGD(TAG, "OTA enabled: %s", config->ota_enabled ? "true" : "false");
     ESP_LOGD(TAG, "Reboot enabled: %s", config->reboot_enabled ? "true" : "false");
     ESP_LOGD(TAG, "OTA URL: `%s`", config->http_config.url);
-    ESP_LOGD(TAG, "Stack size in byte: %d", config->stack_size);
+    ESP_LOGD(TAG, "Stack size in byte: %d", config->mqtt_config.task_stack);
     ESP_LOGD(TAG, "node_lists: `%s`", config->node_lists);
-
-    ESP_ERROR_CHECK(homie_mktopic(lwt_topic, "$state", sizeof(lwt_topic)));
-
-    esp_mqtt_client_config_t mqtt_cfg = {
-        .client_id = config->client_id,
-        .uri = config->mqtt_uri,
-        .username = config->mqtt_username,
-        .password = config->mqtt_password,
-#if HELPER_TARGET_VERSION < HELPER_TARGET_VERSION_ESP32_V4
-        .event_handle = mqtt_event_handler_cb,
-#endif
-        .lwt_msg = "lost",
-        .lwt_retain = 1,
-        .lwt_topic = lwt_topic,
-        .keepalive = 15,
-        .cert_pem = config->http_config.cert_pem,
-        .task_stack = config->stack_size,
-    };
-
-    if ((client = esp_mqtt_client_init(&mqtt_cfg)) == NULL) {
+    if ((client = esp_mqtt_client_init(&config->mqtt_config)) == NULL) {
         ESP_LOGE(TAG, "esp_mqtt_client_init() failed");
         goto fail;
     }
 #if HELPER_TARGET_VERSION >= HELPER_TARGET_VERSION_ESP32_V4
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, client);
 #endif
+
+    ESP_LOGI(TAG, "Running esp_mqtt_client_start()");
     if ((err = esp_mqtt_client_start(client)) != ESP_OK) {
         ESP_LOGE(TAG, "esp_mqtt_client_start(): %s", esp_err_to_name(err));
         goto fail;
@@ -347,8 +344,17 @@ fail:
 
 esp_err_t homie_mktopic(char *topic, const char *subtopic, const size_t topic_size)
 {
-    int ret = snprintf(topic, topic_size, "%s/%s/%s",
-            config->base_topic, config->client_id, subtopic);
+    int ret;
+    if (!config->mqtt_config.client_id) {
+        ESP_LOGE(TAG, "client_id in mqtt_config must be set");
+        goto fail;
+    }
+    if (!config->base_topic) {
+        ESP_LOGE(TAG, "base_topic in mqtt_config must be set");
+        goto fail;
+    }
+    ret = snprintf(topic, topic_size, "%s/%s/%s",
+            config->base_topic, config->mqtt_config.client_id, subtopic);
 
     if (ret < 0 || ret >= topic_size) {
         ESP_LOGE(TAG, "homie_mktopic(): topic is too short: ret: %d, topic_size: %d",
@@ -711,11 +717,6 @@ esp_mqtt_client_handle_t homie_init(homie_config_t *passed_config)
         ESP_LOGE(TAG, "invalid argument: event_group");
         goto fail;
     }
-
-    // If client_id is blank, generate one based off the mac
-    if (!config->client_id[0])
-        _get_mac(config->client_id, HOMIE_MAX_MQTT_CLIENT_ID_LEN, false);
-
     if ((client = mqtt_app_start()) == NULL) {
         ESP_LOGE(TAG, "mqtt_app_start(): failed");
         goto fail;

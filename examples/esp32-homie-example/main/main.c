@@ -19,8 +19,6 @@ const static int CONNECTED_BIT = BIT0;
 
 static esp_err_t my_mqtt_handler(esp_mqtt_event_handle_t event)
 {
-    static char *topic;
-    static char *data_text;
     esp_err_t err = ESP_FAIL;
 
     switch (event->event_id)
@@ -30,6 +28,7 @@ static esp_err_t my_mqtt_handler(esp_mqtt_event_handle_t event)
         break;
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED in my_mqtt_handler");
+        break;
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED in my_mqtt_handler");
         break;
@@ -42,6 +41,7 @@ static esp_err_t my_mqtt_handler(esp_mqtt_event_handle_t event)
     case MQTT_EVENT_PUBLISHED:
         break;
     case MQTT_EVENT_DATA:
+        break;
     case MQTT_EVENT_ERROR:
         ESP_LOGI(TAG, "MQTT_EVENT_ERROR in my_mqtt_handler");
         break;
@@ -104,15 +104,25 @@ void app_main()
     wifi_init();
 
     static homie_config_t homie_conf = {
-        .mqtt_uri = CONFIG_MQTT_URI,
-        .mqtt_username = CONFIG_MQTT_USERNAME,
-        .mqtt_password = CONFIG_MQTT_PASSWORD,
+        .mqtt_config = {
+            .event_handle = NULL,
+            .event_loop_handle = NULL,
+            .client_id = "foo",
+            .username = CONFIG_MQTT_USERNAME,
+            .password = CONFIG_MQTT_PASSWORD,
+            .uri = CONFIG_MQTT_URI,
+            .keepalive = 15,
+            .task_stack = configMINIMAL_STACK_SIZE * 10,
+            .cert_pem = NULL,
+        },
         .device_name = "My Device",
         .base_topic = "homie",
         .firmware_name = "Example",
         .firmware_version = "0.0.1",
         .ota_enabled = true,
+        .reboot_enabled = true,
         .mqtt_handler = my_mqtt_handler,
+        .event_group = NULL, // XXX FIXME
     };
     homie_event_group = xEventGroupCreate();
     if (homie_event_group == NULL) {
