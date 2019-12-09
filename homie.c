@@ -72,28 +72,6 @@ SemaphoreHandle_t mutex_ota;
 
 static esp_err_t homie_connected();
 
-static bool _starts_with(const char *pre, const char *str, int lenstr)
-{
-    size_t lenpre = strlen(pre);
-    return lenstr < lenpre ? false : strncmp(pre, str, lenpre) == 0;
-}
-
-#define REMOTE_LOGGING_MAX_PAYLOAD_LEN 1024
-static int _homie_logger(const char *str, va_list l)
-{
-    int ret;
-    char buf[REMOTE_LOGGING_MAX_PAYLOAD_LEN];
-
-    ret = vsnprintf(buf, REMOTE_LOGGING_MAX_PAYLOAD_LEN, str, l);
-    if (ret < 0 || ret >= sizeof(buf)) {
-        ESP_LOGW(TAG, "_homie_logger(): too long");
-    }
-    if (homie_publish("log", QOS_1, NOT_RETAINED, buf) <= 0) {
-        ESP_LOGW(TAG, "_homie_logger(): homie_publish() failed");
-    }
-    return vprintf(str, l);
-}
-
 static void handle_command(const char *topic, const char *data)
 {
     esp_err_t err;
