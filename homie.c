@@ -70,6 +70,7 @@ static const char homie_node_name[] = "esp";
 static esp_mqtt_client_handle_t client;
 static homie_config_t *config;
 static EventGroupHandle_t *mqtt_group;
+SemaphoreHandle_t mutex_ota;
 
 static esp_err_t homie_connected();
 
@@ -707,6 +708,12 @@ esp_mqtt_client_handle_t homie_init(homie_config_t *passed_config)
 {
     config = passed_config;
     mqtt_group = config->event_group;
+    mutex_ota = xSemaphoreCreateMutex();
+    if (mutex_ota == NULL) {
+        ESP_LOGE(TAG, "xSemaphoreCreateMutex()");
+        goto fail;
+    }
+
     if (!config) {
         ESP_LOGE(TAG, "invalid argument");
         goto fail;
