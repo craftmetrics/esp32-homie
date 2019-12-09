@@ -25,11 +25,11 @@
 #ifndef CM_ESP32_HOMIE_H
 #define CM_ESP32_HOMIE_H
 
-#include <esp_err.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
+#include <esp_err.h>
 #include <esp_http_client.h>
-#include "mqtt_client.h"
+#include <mqtt_client.h>
 
 #define HOMIE_MAX_URI_LEN               (64)
 #define HOMIE_MAX_TOPIC_LEN (512)
