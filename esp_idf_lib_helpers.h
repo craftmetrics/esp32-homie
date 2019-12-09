@@ -126,6 +126,7 @@
 #endif
 /* }}} */
 
+#if defined(DEBUG)
 /* show the actual values for debugging */
 #define VALUE_TO_STRING(x) #x
 #define VALUE(x) VALUE_TO_STRING(x)
@@ -133,5 +134,6 @@
 #pragma message(VAR_NAME_VALUE(CONFIG_IDF_TARGET_ESP32))
 #pragma message(VAR_NAME_VALUE(CONFIG_IDF_TARGET_ESP8266))
 #pragma message(VAR_NAME_VALUE(HELPER_TARGET_VERSION))
+#endif // defined(DEBUG)
 
-#endif
+#endif // !defined(__ESP_IDF_LIB_HELPERS__H__)
