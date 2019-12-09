@@ -42,13 +42,7 @@ Examples are under [examples](examples) directory.
 
 OTA works according to the following scheme:
 
-1. OTA must be enabled in the config passed to `homie_init` (it's off by
-   default)
-1. The initiating entity publishes a message to `./$implementation/ota/url`
-   containing a URL to the new firmware
-1. If an error is encountered, the device publishes a message to
-   `./$implementation/ota/status`
-1. If it is successful, the device reboots into the new firmware
+TBW
 
 ## Remote Logging
 
