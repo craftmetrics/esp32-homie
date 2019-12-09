@@ -104,9 +104,6 @@ static void handle_command(const char *topic, const char *data)
 
     ESP_ERROR_CHECK(homie_mktopic(topic_reboot, "esp/reboot/set", sizeof(topic_reboot)));
     ESP_ERROR_CHECK(homie_mktopic(topic_ota, "esp/ota/set", sizeof(topic_ota)));
-    ESP_LOGI(TAG, "topic_ota: %s", topic_ota);
-    ESP_LOGI(TAG, "topic_reboot: %s", topic_reboot);
-
 
     if (topic == NULL || data == NULL) {
         ESP_LOGE(TAG, "topic or data is NULL");
@@ -323,11 +320,18 @@ static esp_mqtt_client_handle_t mqtt_app_start(void)
     char lwt_topic[HOMIE_MAX_MQTT_TOPIC_LEN];
     esp_err_t err;
 
-    ESP_LOGI(TAG, "URI: `%s`", config->mqtt_uri);
-    ESP_LOGI(TAG, "client_id: `%s`", config->client_id);
-    ESP_LOGI(TAG, "user name: `%s`", config->mqtt_username);
-    ESP_LOGI(TAG, "base_topic: `%s`", config->base_topic);
-    ESP_LOGI(TAG, "stack_size: %d", config->stack_size);
+    ESP_LOGD(TAG, "MQTT URI: `%s`", config->mqtt_uri);
+    ESP_LOGD(TAG, "MQTT user name: `%s`", config->mqtt_username);
+    ESP_LOGD(TAG, "MQTT client ID: `%s`", config->client_id);
+    ESP_LOGD(TAG, "device_name: %s", config->device_name);
+    ESP_LOGD(TAG, "MQTT base topic: `%s`", config->base_topic);
+    ESP_LOGD(TAG, "Firmware name: `%s`", config->firmware_name);
+    ESP_LOGD(TAG, "Firmware version: `%s`", config->firmware_version);
+    ESP_LOGD(TAG, "OTA enabled: %s", config->ota_enabled ? "true" : "false");
+    ESP_LOGD(TAG, "Reboot enabled: %s", config->reboot_enabled ? "true" : "false");
+    ESP_LOGD(TAG, "OTA URL: `%s`", config->http_config.url);
+    ESP_LOGD(TAG, "Stack size in byte: %d", config->stack_size);
+    ESP_LOGD(TAG, "node_lists: `%s`", config->node_lists);
 
     ESP_ERROR_CHECK(homie_mktopic(lwt_topic, "$state", sizeof(lwt_topic)));
 
@@ -393,7 +397,7 @@ int homie_subscribe(const char *subtopic, const int qos)
         ESP_LOGW(TAG, "esp_mqtt_client_subscribe() failed: topic: `%s`", topic);
         goto fail;
     }
-    ESP_LOGI(TAG, "sent subscribe successful, topic: `%s` msg_id=%d", topic, msg_id);
+    ESP_LOGI(TAG, "successfully subscribed to topic: `%s` msg_id=%d", topic, msg_id);
     return msg_id;
 fail:
     return -1;
