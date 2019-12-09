@@ -97,8 +97,8 @@ static int _homie_logger(const char *str, va_list l)
 static void handle_command(const char *topic, const char *data)
 {
     esp_err_t err;
-    char topic_reboot[HOMIE_MAX_TOPIC_LEN];
-    char topic_ota[HOMIE_MAX_TOPIC_LEN];
+    char topic_reboot[HOMIE_MAX_MQTT_TOPIC_LEN];
+    char topic_ota[HOMIE_MAX_MQTT_TOPIC_LEN];
     char command_reboot[] = "reboot";
     char command_ota[] = "run";
 
@@ -112,11 +112,11 @@ static void handle_command(const char *topic, const char *data)
         ESP_LOGE(TAG, "topic or data is NULL");
         goto fail;
     }
-    if (strncmp(topic_ota, topic, HOMIE_MAX_TOPIC_LEN) == 0) {
+    if (strncmp(topic_ota, topic, HOMIE_MAX_MQTT_TOPIC_LEN) == 0) {
         if (!config->ota_enabled) {
             goto finish;
         }
-        if (strncmp(command_ota, data, HOMIE_MAX_DATA_LEN) == 0) {
+        if (strncmp(command_ota, data, HOMIE_MAX_MQTT_DATA_LEN) == 0) {
             if (homie_publish("esp/ota", QOS_1, RETAINED, command_ota) == 0) {
                 ESP_LOGW(TAG, "failed to set esp/ota to `run`");
             }
@@ -154,11 +154,11 @@ static void handle_command(const char *topic, const char *data)
         } else {
             ESP_LOGW(TAG, "Unknown command for command topic: %s data: `%s`", topic_ota, data);
         }
-    } else if (strncmp(topic_reboot, topic, HOMIE_MAX_TOPIC_LEN) == 0) {
+    } else if (strncmp(topic_reboot, topic, HOMIE_MAX_MQTT_TOPIC_LEN) == 0) {
         if (!config->reboot_enabled) {
             goto finish;
         }
-        if (strncmp(command_reboot, data, HOMIE_MAX_DATA_LEN) == 0) {
+        if (strncmp(command_reboot, data, HOMIE_MAX_MQTT_DATA_LEN) == 0) {
 
             if (homie_publish("esp/reboot", QOS_1, RETAINED, "reboot") == 0) {
                 ESP_LOGE(TAG, "homie_publish() failed");
@@ -320,7 +320,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 static esp_mqtt_client_handle_t mqtt_app_start(void)
 {
-    char lwt_topic[HOMIE_MAX_TOPIC_LEN];
+    char lwt_topic[HOMIE_MAX_MQTT_TOPIC_LEN];
     esp_err_t err;
 
     ESP_LOGI(TAG, "URI: `%s`", config->mqtt_uri);
@@ -381,7 +381,7 @@ fail:
 int homie_subscribe(const char *subtopic, const int qos)
 {
     int msg_id;
-    char topic[HOMIE_MAX_TOPIC_LEN];
+    char topic[HOMIE_MAX_MQTT_TOPIC_LEN];
     if (qos < 0 || qos > 2) {
         ESP_LOGE(TAG, "invalid QoS: %d", qos);
         goto fail;
@@ -402,7 +402,7 @@ fail:
 int homie_publish(const char *subtopic, int qos, int retain, const char *payload)
 {
     int msg_id = -1;
-    char topic[HOMIE_MAX_TOPIC_LEN];
+    char topic[HOMIE_MAX_MQTT_TOPIC_LEN];
     if (homie_mktopic(topic, subtopic, sizeof(topic)) != ESP_OK) {
         ESP_LOGW(TAG, "homie_mktopic() failed");
         goto fail;
@@ -732,7 +732,7 @@ esp_mqtt_client_handle_t homie_init(homie_config_t *passed_config)
 
     // If client_id is blank, generate one based off the mac
     if (!config->client_id[0])
-        _get_mac(config->client_id, HOMIE_MAX_CLIENT_ID_LEN, false);
+        _get_mac(config->client_id, HOMIE_MAX_MQTT_CLIENT_ID_LEN, false);
 
     if ((client = mqtt_app_start()) == NULL) {
         ESP_LOGE(TAG, "mqtt_app_start(): failed");

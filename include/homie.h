@@ -31,18 +31,17 @@
 #include <esp_http_client.h>
 #include <mqtt_client.h>
 
-#define HOMIE_MAX_URI_LEN               (64)
-#define HOMIE_MAX_TOPIC_LEN (512)
-#define HOMIE_MAX_DATA_LEN (256)
-#define HOMIE_MAX_MQTT_URI_LEN          HOMIE_MAX_URI_LEN
-#define HOMIE_MAX_MQTT_USERNAME_LEN (32)
-#define HOMIE_MAX_MQTT_PASSWORD_LEN (32)
-#define HOMIE_MAX_CLIENT_ID_LEN (32)
-#define HOMIE_MAX_DEVICE_NAME_LEN (32)
-#define HOMIE_MAX_BASE_TOPIC_LEN (32)
-#define HOMIE_MAX_FIRMWARE_NAME_LEN (32)
-#define HOMIE_MAX_FIRMWARE_VERSION_LEN (8)
-#define HOMIE_MAX_NODE_LISTS_LEN (256)
+#define HOMIE_MAX_URI_LEN                   (128)
+#define HOMIE_MAX_MQTT_TOPIC_LEN            (512)
+#define HOMIE_MAX_MQTT_DATA_LEN             (256)
+#define HOMIE_MAX_MQTT_USERNAME_LEN         (32)
+#define HOMIE_MAX_MQTT_PASSWORD_LEN         (32)
+#define HOMIE_MAX_MQTT_CLIENT_ID_LEN        (32)
+#define HOMIE_MAX_DEVICE_NAME_LEN           (32)
+#define HOMIE_MAX_MQTT_BASE_TOPIC_LEN       (32)
+#define HOMIE_MAX_FIRMWARE_NAME_LEN         (32)
+#define HOMIE_MAX_FIRMWARE_VERSION_LEN      (32)
+#define HOMIE_MAX_NODE_LISTS_LEN            (64)
 
 #define HOMIE_MQTT_CONNECTED_BIT BIT0
 #define HOMIE_MQTT_STATUS_UPDATE_REQUIRED BIT1
@@ -52,12 +51,12 @@
  */
 typedef struct
 {
-    char mqtt_uri[HOMIE_MAX_MQTT_URI_LEN];                  //!< MQTT URI string
+    char mqtt_uri[HOMIE_MAX_URI_LEN];                       //!< MQTT URI string
     char mqtt_username[HOMIE_MAX_MQTT_USERNAME_LEN];        //!< User name
     char mqtt_password[HOMIE_MAX_MQTT_PASSWORD_LEN];        //!< Password
-    char client_id[HOMIE_MAX_CLIENT_ID_LEN];                //!< MQTT client ID. If not defined, the base MAC address iof the device is used (in the form of `aabbccddeeff`).
+    char client_id[HOMIE_MAX_MQTT_CLIENT_ID_LEN];           //!< MQTT client ID. If not defined, the base MAC address iof the device is used (in the form of `aabbccddeeff`).
     char device_name[HOMIE_MAX_DEVICE_NAME_LEN];            //!< Device name
-    char base_topic[HOMIE_MAX_BASE_TOPIC_LEN];              //!< Root topic
+    char base_topic[HOMIE_MAX_MQTT_BASE_TOPIC_LEN];         //!< Root topic
     char firmware_name[HOMIE_MAX_FIRMWARE_NAME_LEN];        //!< Firmware name
     char firmware_version[HOMIE_MAX_FIRMWARE_VERSION_LEN];  //!< Firmware version
     bool ota_enabled;                                       //!< Enable or disable OTA
@@ -68,7 +67,7 @@ typedef struct
     EventGroupHandle_t *event_group;                        //!< Event group handle
     uint16_t stack_size;                                    //!< Stack size of MQTT client
     char node_lists[HOMIE_MAX_NODE_LISTS_LEN];              //!< comma-separated string of nodes
-    void (*init_handler)();                                  //!< Pointer to a function that runs during `init` state. Typically, used to describe nodes in node_lists ($name, $type, and $properties).
+    void (*init_handler)();                                 //!< Pointer to a function that runs during `init` state. Typically, used to describe nodes in node_lists ($name, $type, and $properties).
 } homie_config_t;
 
 /**
