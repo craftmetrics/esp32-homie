@@ -30,7 +30,7 @@ git submodule add https://github.com/craftmetrics/esp32-homie.git components/esp
 
 ## Example
 
-https://github.com/craftmetrics/esp32-homie-example
+Examples are under [examples](examples) directory.
 
 ## OTA Updates
 
