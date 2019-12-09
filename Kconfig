@@ -17,4 +17,59 @@ menu "Homie HTTP client"
             Currently supported versions:
               * 4.0.0
     endchoice
+    config HOMIE_MAX_URI_LEN
+        int "Max length of URI"
+        default 128
+        help
+            Maximum length, including NULL termination, of URIs
+    config HOMIE_MAX_MQTT_TOPIC_LEN
+        int "Max length of MQTT topic"
+        default 512
+        help
+            Maximum length, including NULL termination, of MQTT topic.
+    config HOMIE_MAX_MQTT_DATA_LEN
+        int "Max length of data part of MQTT message"
+        default 256
+        help
+            Maximum length of data part of MQTT message.
+    config HOMIE_MAX_MQTT_USERNAME_LEN
+        int "Max length of MQTT user name"
+        default 32
+        help
+            Maximum length, including NULL termination, of MQTT user name.
+    config HOMIE_MAX_MQTT_PASSWORD_LEN
+        int "Max length of MQTT password"
+        default 32
+        help
+            Maximum length, including NULL termination, of MQTT password.
+    config HOMIE_MAX_MQTT_CLIENT_ID_LEN
+        int "Max length of MQTT client ID"
+        default 32
+        help
+            Maximum length, including NULL termination, of MQTT client ID.
+    config HOMIE_MAX_MQTT_BASE_TOPIC_LEN
+        int "Max length of MQTT base topic"
+        default 32
+        help
+            Maximum length, including NULL termination, of MQTT base topic.
+    config HOMIE_MAX_DEVICE_NAME_LEN
+        int "Max length of device name"
+        default 32
+        help
+            Maximum length, including NULL termination, of device name.
+    config HOMIE_MAX_FIRMWARE_NAME_LEN
+        int "Max length of firmware name"
+        default 32
+        help
+            Maximum length, including NULL termination, of firmware name.
+    config HOMIE_MAX_FIRMWARE_VERSION_LEN
+        int "Max length of firmware version"
+        default 32
+        help
+            Maximum length, including NULL termination, of firmware version.
+    config HOMIE_MAX_NODE_LISTS_LEN
+        int "Max length of node_lists"
+        default 64
+        help
+            Maximum length, including NULL termination, of node_lists.
 endmenu
