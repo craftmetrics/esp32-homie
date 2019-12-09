@@ -46,14 +46,7 @@ TBW
 
 ## Remote Logging
 
-When remote logging is enabled, all calls to ESP_LOG\*() are published to
-`./log`.
-
-To enable remote logging, send `true` to `./$implementation/logging`. To
-disable, send `false`.
-
-Note that the default logger uses ANSI terminal colors in its log output, you
-may want to set `CONFIG_LOG_COLORS=n` in `sdkconfig` to disable this.
+Not implemented yet
 
 ## License
 
