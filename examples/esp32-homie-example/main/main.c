@@ -17,6 +17,44 @@ static const char* TAG = "EXAMPLE";
 static EventGroupHandle_t wifi_event_group;
 const static int CONNECTED_BIT = BIT0;
 
+static esp_err_t my_mqtt_handler(esp_mqtt_event_handle_t event)
+{
+    static char *topic;
+    static char *data_text;
+    esp_err_t err = ESP_FAIL;
+
+    switch (event->event_id)
+    {
+    case MQTT_EVENT_BEFORE_CONNECT:
+        ESP_LOGI(TAG, "MQTT_EVENT_BEFORE_CONNECT in my_mqtt_handler");
+        break;
+    case MQTT_EVENT_CONNECTED:
+        ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED in my_mqtt_handler");
+    case MQTT_EVENT_DISCONNECTED:
+        ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED in my_mqtt_handler");
+        break;
+    case MQTT_EVENT_SUBSCRIBED:
+        ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED in my_mqtt_handler");
+        break;
+    case MQTT_EVENT_UNSUBSCRIBED:
+        ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED in my_mqtt_handler");
+        break;
+    case MQTT_EVENT_PUBLISHED:
+        break;
+    case MQTT_EVENT_DATA:
+    case MQTT_EVENT_ERROR:
+        ESP_LOGI(TAG, "MQTT_EVENT_ERROR in my_mqtt_handler");
+        break;
+    default:
+        ESP_LOGW(TAG, "Unknown event ID in my_mqtt_handler. event ID: %d", event->event_id);
+        err = ESP_FAIL;
+        goto fail;
+    }
+    err = ESP_OK;
+fail:
+    return err;
+}
+
 static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 {
     switch (event->event_id) {
@@ -74,6 +112,7 @@ void app_main()
         .firmware_name = "Example",
         .firmware_version = "0.0.1",
         .ota_enabled = true,
+        .mqtt_handler = my_mqtt_handler,
     };
     homie_event_group = xEventGroupCreate();
     if (homie_event_group == NULL) {

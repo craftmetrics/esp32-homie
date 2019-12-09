@@ -38,8 +38,6 @@
 #endif
 
 #include "homie.h"
-#   32030200
-#   32040000
 #if HELPER_TARGET_VERSION >= HELPER_TARGET_VERSION_ESP32_V4
 #include "task_ota.h"
 #else
@@ -195,6 +193,7 @@ fail:
 
 static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 {
+    esp_err_t err = ESP_FAIL;
     static char *topic;
     static char *data_text;
 
@@ -208,8 +207,6 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
         xEventGroupSetBits(*mqtt_group, HOMIE_MQTT_CONNECTED_BIT);
         xEventGroupSetBits(*mqtt_group, HOMIE_MQTT_STATUS_UPDATE_REQUIRED);
-        if (config->connected_handler != NULL)
-            config->connected_handler();
         break;
 
     case MQTT_EVENT_DISCONNECTED:
@@ -301,7 +298,17 @@ free:
         ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
         break;
     }
-    return ESP_OK;
+    if (config->mqtt_handler != NULL) {
+        err = config->mqtt_handler(event);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "mqtt_handler failed: event_id: %d err: %s",
+                    event->event_id, esp_err_to_name(err));
+            goto fail;
+        }
+    }
+    err = ESP_OK;
+fail:
+    return err;
 }
 
 #if HELPER_TARGET_VERSION >= HELPER_TARGET_VERSION_ESP32_V4

@@ -63,8 +63,7 @@ typedef struct
     bool ota_enabled;                                       //!< Enable or disable OTA
     bool reboot_enabled;                                    //!< Enable or disable `reboot` command
     esp_http_client_config_t http_config;                   //!< HTTP config
-    void (*msg_handler)(char *, char *);                    //!< msg_handler
-    void (*connected_handler)();                            //!< connected_handler
+    esp_err_t (*mqtt_handler)(esp_mqtt_event_handle_t);     //!< Pointer to MQTT event handler. Set NULL if not used.
     void (*ota_status_handler)(int);                        //!< ota_status_handler
     EventGroupHandle_t *event_group;                        //!< Event group handle
     uint16_t stack_size;                                    //!< Stack size of MQTT client
