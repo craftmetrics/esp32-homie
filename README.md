@@ -55,6 +55,10 @@ new firmware is same or older than the one of the running firmware).
 For more details, see `examples/system/ota` in your branch of `esp-idf` at
 [https://github.com/espressif/esp-idf/](https://github.com/espressif/esp-idf/).
 
+Note that `sdkconfig` should have necessary variables set, such as
+`CONFIG_PARTITION_TABLE_TWO_OTA` in `esp-idf` 4.x, etc). For more details, see
+[Over The Air Updates (OTA)](https://docs.espressif.com/projects/esp-idf/en/latest/api-reference/system/ota.html).
+
 ## Remote Logging
 
 Not implemented yet
