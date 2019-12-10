@@ -40,9 +40,20 @@ Examples are under [examples](examples) directory.
 
 ## OTA Updates
 
-OTA works according to the following scheme:
+The OTA routine is based on
+[native_ota_example](https://github.com/espressif/esp-idf/tree/master/examples/system/ota)
+without logic change.
 
-TBW
+* Download a firmware at the location specified in `http_config`
+* If the version of the firmware is different from the version of the running
+  firmware, start the OTA
+
+Depending on the version of `esp-idf`, additional checks will be performed (in
+4.x, it checks the last invalid firmware, and do not upgrade if the version of
+new firmware is same or older than the one of the running firmware).
+
+For more details, see `examples/system/ota` in your branch of `esp-idf` at
+[https://github.com/espressif/esp-idf/](https://github.com/espressif/esp-idf/).
 
 ## Remote Logging
 
