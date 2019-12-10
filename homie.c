@@ -647,7 +647,7 @@ static void homie_task(void *pvParameter)
 {
     int msg_id;
     int rssi;
-    char buf[32 + 1];
+    char topic[HOMIE_MAX_MQTT_TOPIC_LEN];
     EventBits_t bit;
 
     while (1) {
@@ -671,41 +671,41 @@ static void homie_task(void *pvParameter)
             }
         }
 
-        if (topic_path_to_node_attribute(buf, sizeof(buf), homie_node_name, "uptime") < 0) {
+        if (topic_path_to_node_attribute(topic, sizeof(topic), homie_node_name, "uptime") < 0) {
             ESP_LOGW(TAG, "homie_task(): topic_path_to_node_attribute() failed: uptime");
         } else {
-            msg_id = homie_publish_int(buf, QOS_1, RETAINED, esp_timer_get_time() / 1000000);
+            msg_id = homie_publish_int(topic, QOS_1, RETAINED, esp_timer_get_time() / 1000000);
             if (msg_id < 0) {
                 ESP_LOGW(TAG, "homie_task(): failed to publish uptime");
             }
         }
 
-        if (topic_path_to_node_attribute(buf, sizeof(buf), homie_node_name, "rssi") < 0) {
+        if (topic_path_to_node_attribute(topic, sizeof(topic), homie_node_name, "rssi") < 0) {
             ESP_LOGW(TAG, "homie_task(): topic_path_to_node_attribute() failed: rssi");
         } else {
-            msg_id = homie_publish_int(buf, QOS_1, RETAINED, rssi);
+            msg_id = homie_publish_int(topic, QOS_1, RETAINED, rssi);
             if (msg_id < 0) {
                 ESP_LOGW(TAG, "homie_task(): failed to publish rssi");
             }
         }
 
-        if (topic_path_to_node_attribute(buf, sizeof(buf), homie_node_name, "signal") < 0) {
+        if (topic_path_to_node_attribute(topic, sizeof(topic), homie_node_name, "signal") < 0) {
             ESP_LOGW(TAG, "homie_task(): topic_path_to_node_attribute() failed: signal");
         } else {
 
             /* Translate to "signal" percentage, assuming RSSI range of
              * (-100,-50)
              */
-            msg_id = homie_publish_int(buf, QOS_1, RETAINED, _clamp((rssi + 100) * 2, 0, 100));
+            msg_id = homie_publish_int(topic, QOS_1, RETAINED, _clamp((rssi + 100) * 2, 0, 100));
             if (msg_id < 0) {
                 ESP_LOGW(TAG, "homie_task(): failed to publish signal");
             }
         }
 
-        if (topic_path_to_node_attribute(buf, sizeof(buf), homie_node_name, "freeheap") < 0) {
+        if (topic_path_to_node_attribute(topic, sizeof(topic), homie_node_name, "freeheap") < 0) {
             ESP_LOGW(TAG, "homie_task(): topic_path_to_node_attribute() failed: freeheap");
         } else {
-            msg_id = homie_publish_int(buf, QOS_1, RETAINED, esp_get_free_heap_size());
+            msg_id = homie_publish_int(topic, QOS_1, RETAINED, esp_get_free_heap_size());
             if (msg_id < 0) {
                 ESP_LOGW(TAG, "homie_task(): failed to publish freeheap");
             }
