@@ -14,6 +14,7 @@ at:
   Homie specification
 - [x] Publishes stats for wifi signal, freeheap, and uptime
 - [x] OTA firmware updates
+- [x] Reboot by MQTT command topic
 - [ ] Support for extendible nodes/stats
 
 ## Philosophy
