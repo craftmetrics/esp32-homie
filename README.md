@@ -2,6 +2,8 @@
 
 An esp-idf component for the [Homie convention](https://github.com/homieiot/convention).
 
+[![Build Status](https://travis-ci.com/trombik/esp32-homie.svg?branch=homie4)](https://travis-ci.com/trombik/esp32-homie)
+
 ## Goals
 
 This is alpha-level software. Pull requests are welcome! Here is where we're
