@@ -149,4 +149,13 @@ esp_err_t homie_mktopic(char *topic, const char *subtopic, const size_t topic_si
 
 int homie_remove_retained(const char *topic);
 
+/**
+ * @brief Get MAC address from base MAC address
+ *
+ * @param[out] mac_string Buffer to copy the MAC address
+ * @param[in] len Size of mac_string
+ * @param[in] sep Whether if `:` should be included as a separater.
+ */
+esp_err_t homie_get_mac(char *mac_string, size_t len, bool sep);
+
 #endif // CM_ESP32_HOMIE_H

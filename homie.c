@@ -71,7 +71,6 @@ static EventGroupHandle_t *mqtt_group;
 SemaphoreHandle_t mutex_ota;
 
 static esp_err_t homie_connected();
-static esp_err_t _get_mac(char *mac_string, size_t len, bool sep);
 char client_id[HOMIE_MAX_MQTT_CLIENT_ID_LEN];
 
 static void handle_command(const char *topic, const char *data)
@@ -491,7 +490,7 @@ fail:
     return ESP_FAIL;
 }
 
-static esp_err_t _get_mac(char *mac_string, size_t len, bool sep)
+esp_err_t homie_get_mac(char *mac_string, size_t len, bool sep)
 {
     // NB: This is the base mac of the device. The actual wifi and eth MAC addresses
     //     will be assigned as offsets from this.
@@ -507,7 +506,7 @@ static esp_err_t _get_mac(char *mac_string, size_t len, bool sep)
         ret = snprintf(mac_string, len, "%02X%02X%02X%02X%02X%02X",
                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     if (ret < 0 || ret >= len) {
-        ESP_LOGE(TAG, "_get_mac(): mac_string too short");
+        ESP_LOGE(TAG, "homie_get_mac(): mac_string too short");
         goto fail;
     }
     return ESP_OK;
@@ -521,7 +520,7 @@ static esp_err_t homie_connected()
     char ip_address[16];
     esp_chip_info_t chip_info;
 
-    ESP_ERROR_CHECK(_get_mac(mac_address, sizeof(mac_address), true));
+    ESP_ERROR_CHECK(homie_get_mac(mac_address, sizeof(mac_address), true));
     ESP_ERROR_CHECK(_get_ip(ip_address, sizeof(ip_address)));
     esp_chip_info(&chip_info);
 

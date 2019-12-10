@@ -106,7 +106,6 @@ void app_main()
     static homie_config_t homie_conf = {
         .mqtt_config = {
             .event_handle = NULL,
-            .event_loop_handle = NULL,
             .client_id = "foo",
             .username = CONFIG_MQTT_USERNAME,
             .password = CONFIG_MQTT_PASSWORD,
