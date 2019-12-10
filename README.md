@@ -65,6 +65,11 @@ Note that `sdkconfig` should have necessary variables set, such as
 
 Not implemented yet
 
+## KNOWN BUGS
+
+Command topics, such as `ota` and `reboot`, are not properly rendered in
+`PAPER UI` of `OpenHAB2` version `2.5.0~M6-1`.
+
 ## License
 
 All code is licensed under MIT license except:
