@@ -50,6 +50,10 @@
 #define RETAINED (1)
 #define NOT_RETAINED (0)
 #define AUTO_LENGTH (0)
+#define NOT_CLEAR_ON_EXIT       pdFALSE
+#define CLEAR_ON_EXIT           pdTRUE
+#define NOT_WAIT_FOR_ALL_BITS   pdFALSE
+#define WAIT_FOR_ALL_BITS       pdTRUE
 
 #if defined(CONFIG_IDF_TARGET_ESP32S2BETA)
 #define CHIP_NAME "ESP32-S2 Beta"
@@ -644,8 +648,20 @@ static void homie_task(void *pvParameter)
     int msg_id;
     int rssi;
     char buf[32 + 1];
+    EventBits_t bit;
 
-    homie_connected();
+    while (1) {
+        ESP_LOGD(TAG, "Waiting for HOMIE_MQTT_CONNECTED_BIT to be set");
+        bit = xEventGroupWaitBits(*mqtt_group,
+                HOMIE_MQTT_CONNECTED_BIT,
+                NOT_CLEAR_ON_EXIT,
+                NOT_WAIT_FOR_ALL_BITS,
+                1000 / portTICK_PERIOD_MS);
+        if ((bit & HOMIE_MQTT_CONNECTED_BIT) == HOMIE_MQTT_CONNECTED_BIT) {
+            break;
+        }
+    }
+    ESP_LOGI(TAG, "Starting the loop in homie_task()");
     while (1)
     {
         rssi = _get_wifi_rssi();
