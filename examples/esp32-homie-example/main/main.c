@@ -98,8 +98,13 @@ static void wifi_init(void)
 
 void app_main()
 {
+    esp_mqtt_client_handle_t client;
     ESP_ERROR_CHECK(nvs_flash_init());
     EventGroupHandle_t homie_event_group;
+    EventBits_t event_bit;
+    char topic[HOMIE_MAX_MQTT_TOPIC_LEN];
+    char mac_string[] = "aabbccddeeff";
+    char nice_mac_string[] = "aa:bb:cc:dd:ee:ff";
 
     wifi_init();
 
@@ -121,15 +126,46 @@ void app_main()
         .ota_enabled = true,
         .reboot_enabled = true,
         .mqtt_handler = my_mqtt_handler,
-        .event_group = NULL, // XXX FIXME
+        .event_group = NULL,
+        .http_config = {
+            .url = CONFIG_OTA_URL,
+            .cert_pem = NULL,
+        },
     };
+
     homie_event_group = xEventGroupCreate();
     if (homie_event_group == NULL) {
-        ESP_LOGE(TAG, "homie_event_group()");
+        ESP_LOGE(TAG, "xEventGroupCreate()");
     }
     homie_conf.event_group = &homie_event_group;
 
-    homie_init(&homie_conf);
+    client = homie_init(&homie_conf);
+    if (client == NULL) {
+        ESP_LOGE(TAG, "homie_init()");
+    }
+
+    ESP_ERROR_CHECK(homie_mktopic(topic, "#", sizeof(topic)));
+    ESP_ERROR_CHECK(homie_get_mac(mac_string, sizeof(mac_string), false));
+    ESP_ERROR_CHECK(homie_get_mac(nice_mac_string, sizeof(nice_mac_string), true));
+
+    printf("MQTT URI: `%s`\n", CONFIG_MQTT_URI);
+    printf("MAC address: `%s` / `%s`\n", mac_string, nice_mac_string);
+    printf("The topic of the device: `%s` (use this topic path to see published attributes)\n", topic);
+    printf("An example command:\n");
+    printf("\tmosquitto_sub -v -h ip.add.re.ss -t '%s'\n", topic);
+
+    while (1) {
+        ESP_LOGI(TAG, "Waiting for HOMIE_MQTT_CONNECTED_BIT to be set");
+        event_bit = xEventGroupWaitBits(homie_event_group,
+                HOMIE_MQTT_CONNECTED_BIT,
+                pdFALSE,
+                pdFALSE,
+                1000 / portTICK_PERIOD_MS);
+        if ((event_bit & HOMIE_MQTT_CONNECTED_BIT) == HOMIE_MQTT_CONNECTED_BIT) {
+            break;
+        }
+    }
+    ESP_LOGI(TAG, "MQTT client has connected to the broker");
 
     // Keep the main task around
     while (1) {

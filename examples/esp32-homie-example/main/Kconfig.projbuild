@@ -29,5 +29,9 @@ config MQTT_PASSWORD
     default "password"
     help
         Password for connecting to the MQTT broker.
-
+config OTA_URL
+    string "URI to firmware"
+    default "http://example.org/build/example.bin"
+    help
+        URI to the firmware
 endmenu
