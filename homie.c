@@ -71,7 +71,6 @@ static const char *TAG = "HOMIE";
 static const char homie_node_name[] = "esp";
 static esp_mqtt_client_handle_t client;
 static homie_config_t *config;
-static EventGroupHandle_t *mqtt_group;
 SemaphoreHandle_t mutex_ota;
 
 static esp_err_t homie_connected();
@@ -185,13 +184,13 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-        xEventGroupSetBits(*mqtt_group, HOMIE_MQTT_CONNECTED_BIT);
-        xEventGroupSetBits(*mqtt_group, HOMIE_MQTT_STATUS_UPDATE_REQUIRED);
+        xEventGroupSetBits(*config->event_group, HOMIE_MQTT_CONNECTED_BIT);
+        xEventGroupSetBits(*config->event_group, HOMIE_MQTT_STATUS_UPDATE_REQUIRED);
         break;
 
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
-        xEventGroupClearBits(*mqtt_group, HOMIE_MQTT_CONNECTED_BIT);
+        xEventGroupClearBits(*config->event_group, HOMIE_MQTT_CONNECTED_BIT);
         break;
 
     case MQTT_EVENT_SUBSCRIBED:
@@ -606,7 +605,7 @@ static esp_err_t homie_connected()
     if (config->init_handler != NULL) {
         config->init_handler();
     }
-    xEventGroupClearBits(*mqtt_group, HOMIE_MQTT_STATUS_UPDATE_REQUIRED);
+    xEventGroupClearBits(*config->event_group, HOMIE_MQTT_STATUS_UPDATE_REQUIRED);
     ESP_LOGI(TAG, "device status has been updated");
     return ESP_OK;
 fail:
@@ -652,7 +651,7 @@ static void homie_task(void *pvParameter)
 
     while (1) {
         ESP_LOGD(TAG, "Waiting for HOMIE_MQTT_CONNECTED_BIT to be set");
-        bit = xEventGroupWaitBits(*mqtt_group,
+        bit = xEventGroupWaitBits(*config->event_group,
                 HOMIE_MQTT_CONNECTED_BIT,
                 NOT_CLEAR_ON_EXIT,
                 NOT_WAIT_FOR_ALL_BITS,
@@ -665,7 +664,7 @@ static void homie_task(void *pvParameter)
     while (1)
     {
         rssi = _get_wifi_rssi();
-        if ((xEventGroupGetBits(*mqtt_group) & HOMIE_MQTT_STATUS_UPDATE_REQUIRED) > 0) {
+        if ((xEventGroupGetBits(*config->event_group) & HOMIE_MQTT_STATUS_UPDATE_REQUIRED) > 0) {
             if (homie_connected() != ESP_OK) {
                 ESP_LOGW(TAG, "homie_task(): homie_connected() failed");
             }
@@ -714,24 +713,8 @@ static void homie_task(void *pvParameter)
     }
 }
 
-esp_mqtt_client_handle_t homie_init(homie_config_t *passed_config)
+esp_mqtt_client_handle_t homie_run()
 {
-    config = passed_config;
-    mqtt_group = config->event_group;
-    mutex_ota = xSemaphoreCreateMutex();
-    if (mutex_ota == NULL) {
-        ESP_LOGE(TAG, "xSemaphoreCreateMutex()");
-        goto fail;
-    }
-
-    if (!config) {
-        ESP_LOGE(TAG, "invalid argument");
-        goto fail;
-    }
-    if (!config->event_group) {
-        ESP_LOGE(TAG, "invalid argument: event_group");
-        goto fail;
-    }
     if ((client = mqtt_app_start()) == NULL) {
         ESP_LOGE(TAG, "mqtt_app_start(): failed");
         goto fail;
@@ -744,4 +727,30 @@ esp_mqtt_client_handle_t homie_init(homie_config_t *passed_config)
     return client;
 fail:
     return NULL;
+}
+
+esp_err_t homie_init(homie_config_t *homie_config)
+{
+    esp_err_t err = ESP_FAIL;
+
+    if (!config) {
+        err = ESP_ERR_INVALID_ARG;
+        goto fail;
+    }
+    if (!config->event_group) {
+        err = ESP_ERR_INVALID_ARG;
+        ESP_LOGE(TAG, "invalid argument: event_group");
+        goto fail;
+    }
+    config = homie_config;
+
+    mutex_ota = xSemaphoreCreateMutex();
+    if (mutex_ota == NULL) {
+        err = ESP_FAIL;
+        ESP_LOGE(TAG, "xSemaphoreCreateMutex()");
+        goto fail;
+    }
+    err = ESP_OK;
+fail:
+    return err;
 }

@@ -71,10 +71,19 @@ typedef struct
 /**
  * @brief Initialize Homie client
  *
+ * This function should be called before any other Homie functions.
+ *
  * @param[in] config Homie client configuration
+ * @return ESP_ERR_INVALID_ARG if config is invalid, ESP_FAIL on other errors,
+ *         ESP_OK on success.
+ */
+esp_err_t homie_init(homie_config_t *passed_config);
+
+/**
+ * @brief Start the Homie client
  * @return MQTT client handle if no errors occured. Otherwise, NULL.
  */
-esp_mqtt_client_handle_t homie_init(homie_config_t *config);
+esp_mqtt_client_handle_t homie_run();
 
 /**
  * @brief Subscribe to a topic under base topic

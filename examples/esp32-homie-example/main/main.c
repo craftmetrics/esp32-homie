@@ -99,6 +99,7 @@ static void wifi_init(void)
 void app_main()
 {
     esp_mqtt_client_handle_t client;
+    esp_err_t err;
     ESP_ERROR_CHECK(nvs_flash_init());
     EventGroupHandle_t homie_event_group;
     EventBits_t event_bit;
@@ -136,12 +137,14 @@ void app_main()
     homie_event_group = xEventGroupCreate();
     if (homie_event_group == NULL) {
         ESP_LOGE(TAG, "xEventGroupCreate()");
+        goto fail;
     }
     homie_conf.event_group = &homie_event_group;
 
-    client = homie_init(&homie_conf);
-    if (client == NULL) {
+    err = homie_init(&homie_conf);
+    if (err != ESP_OK) {
         ESP_LOGE(TAG, "homie_init()");
+        goto fail;
     }
 
     ESP_ERROR_CHECK(homie_mktopic(topic, "#", sizeof(topic)));
@@ -153,6 +156,14 @@ void app_main()
     printf("The topic of the device: `%s` (use this topic path to see published attributes)\n", topic);
     printf("An example command:\n");
     printf("\tmosquitto_sub -v -h ip.add.re.ss -t '%s'\n", topic);
+    printf("\t(replace ip.add.re.ss with MQTT broker's IP address or host name)\n");
+
+    ESP_LOGI(TAG, "Starting Homie client");
+    client = homie_run();
+    if (client == NULL) {
+        ESP_LOGE(TAG, "homie_run()");
+        goto fail;
+    }
 
     while (1) {
         ESP_LOGI(TAG, "Waiting for HOMIE_MQTT_CONNECTED_BIT to be set");
@@ -168,6 +179,7 @@ void app_main()
     ESP_LOGI(TAG, "MQTT client has connected to the broker");
 
     // Keep the main task around
+fail:
     while (1) {
         vTaskDelay(1000/portTICK_PERIOD_MS);
     }
