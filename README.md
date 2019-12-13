@@ -47,20 +47,30 @@ The OTA routine is based on
 [native_ota_example](https://github.com/espressif/esp-idf/tree/master/examples/system/ota)
 without logic change.
 
-* Download a firmware at the location specified in `http_config`
-* If the version of the firmware is different from the version of the running
-  firmware, start the OTA
-
-Depending on the version of `esp-idf`, additional checks will be performed (in
-4.x, it checks the last invalid firmware, and do not upgrade if the version of
-new firmware is same or older than the one of the running firmware).
+Note that `sdkconfig` should have necessary variables set, such as
+`CONFIG_PARTITION_TABLE_TWO_OTA` in `esp-idf` 4.x, etc). For more details, see
+[Over The Air Updates (OTA)](https://docs.espressif.com/projects/esp-idf/en/latest/api-reference/system/ota.html).
 
 For more details, see `examples/system/ota` in your branch of `esp-idf` at
 [https://github.com/espressif/esp-idf/](https://github.com/espressif/esp-idf/).
 
-Note that `sdkconfig` should have necessary variables set, such as
-`CONFIG_PARTITION_TABLE_TWO_OTA` in `esp-idf` 4.x, etc). For more details, see
-[Over The Air Updates (OTA)](https://docs.espressif.com/projects/esp-idf/en/latest/api-reference/system/ota.html).
+### `esp-idf` version 3.x
+
+* Download a firmware at the location specified in `http_config`
+* If the version of the firmware is different from the version of the running
+  firmware, start the OTA
+
+### `esp-idf` version 4.x
+
+* Download a firmware at the location specified in `http_config`
+* If the running firmware version is older than the new firmware, start the
+  OTA.
+
+Firmware version can be set in `version.txt` at the root directory of _your_
+project. See ["App version"](https://docs.espressif.com/projects/esp-idf/en/latest/api-reference/system/system.html#app-version)
+section in ["Miscellaneous System APIs"](https://docs.espressif.com/projects/esp-idf/en/latest/api-reference/system/system.html).
+
+Accepted version string must be in the form of [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
 ## Remote Logging
 
@@ -77,3 +87,7 @@ All code is licensed under MIT license except:
 
 * `task_ota.c`, `task_ota_3_2.c` and their header files (Public Domain, or
   [Creative Commons CC0](https://creativecommons.org/share-your-work/public-domain/cc0/))
+
+The library includes the following third-party libraries:
+
+* [semver.c](https://github.com/h2non/semver.c) (MIT license, Copyright (c) Tomás Aparicio)

@@ -27,6 +27,7 @@
 
 #include "esp_idf_lib_helpers.h"
 #include "task_ota.h"
+#include "semver.c"
 
 #define BUFFSIZE (1024)
 #define HASH_SHA256_LEN (32)
@@ -40,6 +41,35 @@ extern SemaphoreHandle_t mutex_ota;
 static char ota_write_data[BUFFSIZE + 1] = { 0 };
 extern const uint8_t ca_cert_ota_pem_start[] asm("_binary_ca_cert_ota_pem_start");
 extern const uint8_t ca_cert_ota_pem_end[] asm("_binary_ca_cert_ota_pem_end");
+
+/**
+ * @brief compare two Semantic Version strings
+ *
+ * @param[in] compare Version string to be compared
+ * @param[in] current Current version string
+ * @param[out] result Result of the comparison.
+ *                    0 if both versions are same.
+ *                    -1 if compare is lower (older) than current,
+ *                    1 if compare is higer (newer) than current
+ * @return ESP_OK on success, ESP_FAIL on error
+ */
+static esp_err_t compare_version(const char *compare, const char *current, int *result)
+{
+    esp_err_t err;
+    semver_t compare_version = {};
+    semver_t current_version = {};
+    if (semver_parse(current, &current_version) || semver_parse(compare, &compare_version)) {
+        err = ESP_FAIL;
+        ESP_LOGE(TAG, "Invalid semantic version string: compare: `%s` current: `%s`", compare, current);
+        goto fail;
+    }
+    *result = semver_compare(compare_version, current_version);
+    err = ESP_OK;
+fail:
+    semver_free(&compare_version);
+    semver_free(&current_version);
+    return err;
+}
 
 static void http_cleanup(esp_http_client_handle_t client)
 {
@@ -130,9 +160,14 @@ static void do_ota(void *pvParameter)
                         ESP_LOGI(TAG, "Last invalid firmware version: %s", invalid_app_info.version);
                     }
 
+                    int result;
                     // check current version with last invalid partition
                     if (last_invalid_app != NULL) {
-                        if (memcmp(invalid_app_info.version, new_app_info.version, sizeof(new_app_info.version)) == 0) {
+                        if (compare_version(invalid_app_info.version, new_app_info.version, &result) != ESP_OK) {
+                            ESP_LOGE(TAG, "compare_version()");
+                            goto fail;
+                        }
+                        if (result == 0) {
                             ESP_LOGW(TAG, "New version is the same as invalid version.");
                             ESP_LOGW(TAG, "Previously, there was an attempt to launch the firmware with %s version, but it failed.", invalid_app_info.version);
                             ESP_LOGW(TAG, "The firmware has been rolled back to the previous version.");
@@ -141,9 +176,19 @@ static void do_ota(void *pvParameter)
                         }
                     }
 
-                    if (memcmp(new_app_info.version, running_app_info.version, sizeof(new_app_info.version)) == 0) {
+                    if (compare_version(new_app_info.version, running_app_info.version, &result) != ESP_OK) {
+                        ESP_LOGE(TAG, "compare_version()");
+                        goto fail;
+                    }
+                    if (result == 0) {
                         ESP_LOGW(TAG, "Current running version is the same as a new. We will not continue the update.");
                         goto no_need_to_update;
+                    }
+                    else if (result < 0) {
+                        ESP_LOGW(TAG, "Current running version is newer than new firmware version. We will not continue the update.");
+                        goto no_need_to_update;
+                    } else {
+                        ESP_LOGI(TAG, "Current running version is older than new firmware version. Starting the OTA");
                     }
 
                     image_header_was_checked = true;

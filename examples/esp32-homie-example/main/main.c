@@ -7,8 +7,17 @@
 #include <nvs_flash.h>
 #include <esp_system.h>
 #include <esp_wifi.h>
-#include <esp_event_loop.h>
 #include <esp_log.h>
+
+#if defined(CONFIG_IDF_TARGET_ESP32) && defined(CONFIG_SDK_TOOLPREFIX)
+#include <esp_event.h>
+#else
+#include <esp_event_loop.h>
+#endif
+
+#if defined(CONFIG_IDF_TARGET_ESP32) && defined(CONFIG_SDK_TOOLPREFIX)
+#include <esp_ota_ops.h>
+#endif
 
 #include "homie.h"
 
@@ -98,15 +107,15 @@ static void wifi_init(void)
 
 void app_main()
 {
-    esp_mqtt_client_handle_t client;
     esp_err_t err;
-    ESP_ERROR_CHECK(nvs_flash_init());
-    EventGroupHandle_t homie_event_group;
-    EventBits_t event_bit;
     char topic[HOMIE_MAX_MQTT_TOPIC_LEN];
     char mac_string[] = "aabbccddeeff";
     char nice_mac_string[] = "aa:bb:cc:dd:ee:ff";
+    esp_mqtt_client_handle_t client;
+    EventGroupHandle_t homie_event_group;
+    EventBits_t event_bit;
 
+    ESP_ERROR_CHECK(nvs_flash_init());
     wifi_init();
 
     static homie_config_t homie_conf = {
@@ -146,24 +155,34 @@ void app_main()
         ESP_LOGE(TAG, "homie_init()");
         goto fail;
     }
+    client = homie_run();
 
-    ESP_ERROR_CHECK(homie_mktopic(topic, "#", sizeof(topic)));
+    ESP_ERROR_CHECK(homie_mktopic(topic, "", sizeof(topic)));
     ESP_ERROR_CHECK(homie_get_mac(mac_string, sizeof(mac_string), false));
     ESP_ERROR_CHECK(homie_get_mac(nice_mac_string, sizeof(nice_mac_string), true));
 
-    printf("MQTT URI: `%s`\n", CONFIG_MQTT_URI);
-    printf("MAC address: `%s` / `%s`\n", mac_string, nice_mac_string);
-    printf("The topic of the device: `%s` (use this topic path to see published attributes)\n", topic);
-    printf("An example command:\n");
-    printf("\tmosquitto_sub -v -h ip.add.re.ss -t '%s'\n", topic);
-    printf("\t(replace ip.add.re.ss with MQTT broker's IP address or host name)\n");
+#if defined(CONFIG_IDF_TARGET_ESP32) && defined(CONFIG_SDK_TOOLPREFIX)
 
-    ESP_LOGI(TAG, "Starting Homie client");
-    client = homie_run();
-    if (client == NULL) {
-        ESP_LOGE(TAG, "homie_run()");
-        goto fail;
-    }
+    /* if SDK version is 4.x, show version information */
+    const esp_partition_t *running = NULL;
+    esp_app_desc_t running_app_info;
+
+    running = esp_ota_get_running_partition();
+    ESP_ERROR_CHECK(esp_ota_get_partition_description(running, &running_app_info));
+    printf("Running firmware version: `%s`\n", running_app_info.version);
+#endif
+    printf("MQTT URI: `%s`\n", CONFIG_MQTT_URI);
+    printf("OTA URI: `%s`\n", CONFIG_OTA_URL);
+    printf("MAC address: `%s` / `%s`\n", mac_string, nice_mac_string);
+    printf("The topic of all the device topics: `%s#` (use this topic path to see published attributes)\n", topic);
+    printf("OTA command topic: `%sesp/ota/set`\n", topic);
+    printf("Example commands:\n");
+    printf("\n");
+    printf("To subscribe all the device topics:\n");
+    printf("\tmosquitto_sub -v -h ip.add.re.ss -t '%s#'\n", topic);
+    printf("\n");
+    printf("To trigger the OTA process:\n");
+    printf("\tmosquitto_pub -h ip.add.re.ss -t '%sesp/ota/set' -m run\n", topic);
 
     while (1) {
         ESP_LOGI(TAG, "Waiting for HOMIE_MQTT_CONNECTED_BIT to be set");
@@ -177,6 +196,7 @@ void app_main()
         }
     }
     ESP_LOGI(TAG, "MQTT client has connected to the broker");
+    esp_mqtt_client_subscribe(client, "foo/bar/buz", 0);
 
     // Keep the main task around
 fail:

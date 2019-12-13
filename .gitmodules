@@ -1,0 +1,3 @@
+[submodule "vendors/semver.c"]
+	path = vendors/semver.c
+	url = https://github.com/h2non/semver.c.git

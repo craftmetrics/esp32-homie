@@ -6,15 +6,17 @@
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, either express or implied.
 */
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/event_groups.h"
-#include "esp_system.h"
-#include "esp_log.h"
-#include "esp_ota_ops.h"
-#include "esp_http_client.h"
-#include "esp_flash_partitions.h"
-#include "esp_partition.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/event_groups.h>
+#include <esp_system.h>
+#include <esp_log.h>
+#include <esp_ota_ops.h>
+#include <esp_http_client.h>
+#include <esp_flash_partitions.h>
+#include <esp_partition.h>
+#include <nvs.h>
+#include <nvs_flash.h>
 
 #include "esp_idf_lib_helpers.h"
 #if HELPER_TARGET_VERSION >= HELPER_TARGET_VERSION_ESP32_V4
@@ -23,12 +25,6 @@
 #include <esp_event_loop.h>
 #endif
 
-#include "nvs.h"
-#include "nvs_flash.h"
-
-#define EXAMPLE_WIFI_SSID CONFIG_WIFI_SSID
-#define EXAMPLE_WIFI_PASS CONFIG_WIFI_PASSWORD
-#define EXAMPLE_SERVER_URL CONFIG_FIRMWARE_UPG_URL
 #define BUFFSIZE 1024
 #define HASH_LEN 32 /* SHA-256 digest length */
 #define MUTEX_DO_NOT_BLOCK (0)
