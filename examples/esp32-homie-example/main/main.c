@@ -225,16 +225,6 @@ void app_main()
     }
     ESP_LOGI(TAG, "MQTT client has connected to the broker");
 
-    ESP_LOGI(TAG, "Initializing MQTT logger");
-    log_queue = xQueueCreate(10, sizeof(homie_log_message_t));
-    if (log_queue == NULL) {
-        ESP_LOGE(TAG, "xQueueCreate()");
-        goto fail;
-    }
-
-    printf("Log topic: %s\n", LOG_TOPIC);
-    printf("\tmosquitto_sub -v -h ip.add.re.ss -t '%s'\n", LOG_TOPIC);
-
 #if defined(CONFIG_EXAMPLE_MQTT_LOGGER_ENABLE)
     homie_log_mqtt_config_t logger_config = {
         .mqtt_client = client,
@@ -248,6 +238,15 @@ void app_main()
         .wait_tick_send = 100 / portTICK_PERIOD_MS,
         .stack_size = configMINIMAL_STACK_SIZE * 10,
     };
+
+    ESP_LOGI(TAG, "Initializing MQTT logger");
+    log_queue = xQueueCreate(10, sizeof(homie_log_message_t));
+    if (log_queue == NULL) {
+        ESP_LOGE(TAG, "xQueueCreate()");
+        goto fail;
+    }
+    printf("Log topic: %s\n", LOG_TOPIC);
+    printf("\tmosquitto_sub -v -h ip.add.re.ss -t '%s'\n", LOG_TOPIC);
     ESP_ERROR_CHECK(log_mqtt_init(&logger_config));
     ESP_LOGI(TAG, "Switching to MQTT logger");
     log_mqtt_start();
