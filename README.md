@@ -77,6 +77,9 @@ Accepted version string must be in the form of [Semantic Versioning 2.0.0](https
 Command topics, such as `ota` and `reboot`, are not properly rendered in
 `PAPER UI` of `OpenHAB2` version `2.5.0~M6-1`.
 
+Although `ESP-IDF` 3.x is supported, the example is not tested in the testing
+environment.
+
 ## License
 
 All code is licensed under MIT license except:
