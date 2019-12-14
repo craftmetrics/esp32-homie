@@ -34,4 +34,14 @@ config OTA_URL
     default "http://example.org/build/example.bin"
     help
         URI to the firmware
+config EXAMPLE_MQTT_LOGGER_ENABLE
+    bool "Enable or disable MQTT logger"
+    default false
+    help
+        when true, Enable MQTT logger. All logs will be logged to MQTT logger topic
+config EXAMPLE_MQTT_LOGGER_TOPIC
+    string "MQTT logger topic"
+    default "foo/bar/buz/logger"
+    help
+        MQTT topic to log.
 endmenu

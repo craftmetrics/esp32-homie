@@ -39,6 +39,7 @@
 #define HOMIE_MAX_FIRMWARE_NAME_LEN         (CONFIG_HOMIE_MAX_FIRMWARE_NAME_LEN)
 #define HOMIE_MAX_FIRMWARE_VERSION_LEN      (CONFIG_HOMIE_MAX_FIRMWARE_VERSION_LEN)
 #define HOMIE_MAX_NODE_LISTS_LEN            (CONFIG_HOMIE_MAX_NODE_LISTS_LEN)
+#define HOMIE_MAX_LOG_MESSAGE_LEN           (CONFIG_HOMIE_MAX_LOG_MESSAGE_LEN)
 
 #define HOMIE_MQTT_CONNECTED_BIT BIT0
 #define HOMIE_MQTT_STATUS_UPDATE_REQUIRED BIT1
@@ -73,11 +74,11 @@ typedef struct
  *
  * This function should be called before any other Homie functions.
  *
- * @param[in] config Homie client configuration
+ * @param[in] homie_config Homie client configuration
  * @return ESP_ERR_INVALID_ARG if config is invalid, ESP_FAIL on other errors,
  *         ESP_OK on success.
  */
-esp_err_t homie_init(homie_config_t *passed_config);
+esp_err_t homie_init(homie_config_t *homie_config);
 
 /**
  * @brief Start the Homie client
@@ -166,5 +167,47 @@ int homie_remove_retained(const char *topic);
  * @param[in] sep Whether if `:` should be included as a separater.
  */
 esp_err_t homie_get_mac(char *mac_string, size_t len, bool sep);
+
+typedef struct
+{
+    esp_mqtt_client_handle_t mqtt_client;      //!< MQTT client
+    EventGroupHandle_t mqtt_event_group;       //!< Event group handle of MQTT
+    int qos;                                    //!< QoS
+    int retain;                                 //! 1 for retained, 0 for not retained
+    QueueHandle_t queue;                        //! Queue handle of log queue
+    char topic[HOMIE_MAX_MQTT_TOPIC_LEN];       //! MQTT topic
+    uint16_t stack_size;                        //! Size of the task
+    UBaseType_t priority;                       //! Priority of the task
+    TickType_t wait_tick;                       //! Tick to wait to receive message from the queue
+    TickType_t send_tick;                       //! Tick to wait to send the message to the queue
+} homie_log_mqtt_config_t;
+
+typedef struct
+{
+    char payload[HOMIE_MAX_LOG_MESSAGE_LEN];        //! The log message
+} homie_log_message_t;
+
+/**
+ * @brief Initialize MQTT logger
+ *
+ * @param[in] homie_log_mqtt_config The logger config
+ *
+ * @return ESP_OK if no error, else ESP_FAIL
+ */
+esp_err_t log_mqtt_init(homie_log_mqtt_config_t *homie_log_mqtt_config);
+
+/**
+ * @brief Start the MQTT logger
+ * @return The task handle of the MQTT logger
+ */
+TaskHandle_t log_mqtt_start();
+
+/**
+ * @brief Stop the MQTT logger.
+ *
+ * Restore the default logger.
+ *
+ */
+void log_mqtt_stop();
 
 #endif // CM_ESP32_HOMIE_H

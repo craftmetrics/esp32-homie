@@ -21,8 +21,9 @@
 
 #include "homie.h"
 
-static const char* TAG = "EXAMPLE";
+#define LOG_TOPIC CONFIG_EXAMPLE_MQTT_LOGGER_TOPIC
 
+static const char* TAG = "EXAMPLE";
 static EventGroupHandle_t wifi_event_group;
 const static int CONNECTED_BIT = BIT0;
 
@@ -107,6 +108,7 @@ static void wifi_init(void)
 
 void app_main()
 {
+    bool logger_is_mqtt = true;
     esp_err_t err;
     char topic[HOMIE_MAX_MQTT_TOPIC_LEN];
     char mac_string[] = "aabbccddeeff";
@@ -114,6 +116,7 @@ void app_main()
     esp_mqtt_client_handle_t client;
     EventGroupHandle_t homie_event_group;
     EventBits_t event_bit;
+    QueueHandle_t log_queue;
 
     ESP_ERROR_CHECK(nvs_flash_init());
     wifi_init();
@@ -196,9 +199,50 @@ void app_main()
         }
     }
     ESP_LOGI(TAG, "MQTT client has connected to the broker");
+
+    ESP_LOGI(TAG, "Initializing MQTT logger");
+    log_queue = xQueueCreate(10, sizeof(homie_log_message_t));
+    if (log_queue == NULL) {
+        ESP_LOGE(TAG, "xQueueCreate()");
+        goto fail;
+    }
+
+    printf("Log topic: %s\n", LOG_TOPIC);
+    printf("\tmosquitto_sub -v -h ip.add.re.ss -t '%s'\n", LOG_TOPIC);
+    homie_log_mqtt_config_t logger_config = {
+        .mqtt_client = client,
+        .mqtt_event_group = homie_event_group,
+        .qos = 1,
+        .retain = 0,
+        .queue = log_queue,
+        .topic = LOG_TOPIC,
+        .priority = 5,
+        .wait_tick = 1000 / portTICK_PERIOD_MS,
+        .send_tick = 100 / portTICK_PERIOD_MS,
+        .stack_size = configMINIMAL_STACK_SIZE * 10,
+    };
+
+#if defined(CONFIG_EXAMPLE_MQTT_LOGGER_ENABLE)
+    ESP_ERROR_CHECK(log_mqtt_init(&logger_config));
+    ESP_LOGI(TAG, "Switching to MQTT logger");
+    log_mqtt_start();
+#endif
+
     esp_mqtt_client_subscribe(client, "foo/bar/buz", 0);
 
     // Keep the main task around
+    while (1) {
+#if defined(CONFIG_EXAMPLE_MQTT_LOGGER_ENABLE)
+        logger_is_mqtt = !logger_is_mqtt;
+        if (logger_is_mqtt) {
+            log_mqtt_start();
+        } else {
+            log_mqtt_stop();
+        }
+#endif
+
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+    }
 fail:
     while (1) {
         vTaskDelay(1000/portTICK_PERIOD_MS);

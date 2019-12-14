@@ -733,11 +733,12 @@ esp_err_t homie_init(homie_config_t *homie_config)
 {
     esp_err_t err = ESP_FAIL;
 
-    if (!config) {
+    if (!homie_config) {
         err = ESP_ERR_INVALID_ARG;
+        ESP_LOGE(TAG, "invalid config");
         goto fail;
     }
-    if (!config->event_group) {
+    if (!homie_config->event_group) {
         err = ESP_ERR_INVALID_ARG;
         ESP_LOGE(TAG, "invalid argument: event_group");
         goto fail;

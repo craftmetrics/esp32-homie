@@ -57,4 +57,11 @@ menu "Homie HTTP client"
         default 64
         help
             Maximum length, including NULL termination, of node_lists.
+    config HOMIE_MAX_LOG_MESSAGE_LEN
+        int "Max length of log message"
+        default 256
+        help
+            Maximum length, including NULL termination, of log message.
+
+            This value must equal to, or be more than, HOMIE_MAX_MQTT_DATA_LEN.
 endmenu
