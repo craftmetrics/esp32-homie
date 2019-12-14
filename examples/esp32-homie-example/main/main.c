@@ -10,23 +10,20 @@
 #include <esp_log.h>
 
 #if defined(CONFIG_IDF_TARGET_ESP32) && defined(CONFIG_SDK_TOOLPREFIX)
+#include <esp_ota_ops.h>
 #include <esp_event.h>
 #else
 #include <esp_event_loop.h>
 #endif
 
-#if defined(CONFIG_IDF_TARGET_ESP32) && defined(CONFIG_SDK_TOOLPREFIX)
-#include <esp_ota_ops.h>
-#endif
-
 #include "homie.h"
 
+#define LOG_TOPIC CONFIG_EXAMPLE_MQTT_LOGGER_TOPIC
 #define QOS_1   (1)
 #define RETAINED (1)
 #define NOT_RETAINED (0)
 
 static const char* TAG = "EXAMPLE";
-
 static EventGroupHandle_t wifi_event_group;
 const static int CONNECTED_BIT = BIT0;
 
@@ -131,7 +128,8 @@ void app_main()
     esp_mqtt_client_handle_t client;
     EventGroupHandle_t homie_event_group;
     EventBits_t event_bit;
-    const TickType_t interval = 1000 / portTICK_PERIOD_MS;
+    QueueHandle_t log_queue;
+    const TickType_t interval = 3000 / portTICK_PERIOD_MS;
     TickType_t last_wakeup_time;
 
     ESP_ERROR_CHECK(nvs_flash_init());
@@ -217,16 +215,44 @@ void app_main()
         }
     }
     ESP_LOGI(TAG, "MQTT client has connected to the broker");
+
+    ESP_LOGI(TAG, "Initializing MQTT logger");
+    log_queue = xQueueCreate(10, sizeof(homie_log_message_t));
+    if (log_queue == NULL) {
+        ESP_LOGE(TAG, "xQueueCreate()");
+        goto fail;
+    }
+
+    printf("Log topic: %s\n", LOG_TOPIC);
+    printf("\tmosquitto_sub -v -h ip.add.re.ss -t '%s'\n", LOG_TOPIC);
+
+#if defined(CONFIG_EXAMPLE_MQTT_LOGGER_ENABLE)
+    homie_log_mqtt_config_t logger_config = {
+        .mqtt_client = client,
+        .mqtt_event_group = homie_event_group,
+        .qos = 1,
+        .retain = 0,
+        .queue = log_queue,
+        .topic = LOG_TOPIC,
+        .priority = 5,
+        .wait_tick_receive = 1000 / portTICK_PERIOD_MS,
+        .wait_tick_send = 100 / portTICK_PERIOD_MS,
+        .stack_size = configMINIMAL_STACK_SIZE * 10,
+    };
+    ESP_ERROR_CHECK(log_mqtt_init(&logger_config));
+    ESP_LOGI(TAG, "Switching to MQTT logger");
+    log_mqtt_start();
+#endif
+
     esp_mqtt_client_subscribe(client, "foo/bar/buz", 0);
 
+    // Keep the main task around
     while (1) {
         last_wakeup_time = xTaskGetTickCount();
         ESP_LOGI(TAG, "Publishing random value");
         homie_publish_int("esp/random", QOS_1, RETAINED, esp_random());
         vTaskDelayUntil(&last_wakeup_time, interval);
     }
-
-    // Keep the main task around
 fail:
     while (1) {
         vTaskDelay(1000/portTICK_PERIOD_MS);

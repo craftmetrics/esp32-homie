@@ -15,6 +15,7 @@ at:
 - [x] Publishes stats for wifi signal, freeheap, and uptime
 - [x] OTA firmware updates
 - [x] Reboot by MQTT command topic
+- [x] Logging over MQTT
 - [ ] Support for extendible nodes/stats
 
 ## Philosophy
@@ -71,10 +72,6 @@ project. See ["App version"](https://docs.espressif.com/projects/esp-idf/en/late
 section in ["Miscellaneous System APIs"](https://docs.espressif.com/projects/esp-idf/en/latest/api-reference/system/system.html).
 
 Accepted version string must be in the form of [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
-
-## Remote Logging
-
-Not implemented yet
 
 ## KNOWN BUGS
 
