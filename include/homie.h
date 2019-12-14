@@ -170,16 +170,16 @@ esp_err_t homie_get_mac(char *mac_string, size_t len, bool sep);
 
 typedef struct
 {
-    esp_mqtt_client_handle_t mqtt_client;      //!< MQTT client
-    EventGroupHandle_t mqtt_event_group;       //!< Event group handle of MQTT
+    esp_mqtt_client_handle_t mqtt_client;       //!< MQTT client
+    EventGroupHandle_t mqtt_event_group;        //!< Event group handle of MQTT
     int qos;                                    //!< QoS
     int retain;                                 //! 1 for retained, 0 for not retained
     QueueHandle_t queue;                        //! Queue handle of log queue
     char topic[HOMIE_MAX_MQTT_TOPIC_LEN];       //! MQTT topic
     uint16_t stack_size;                        //! Size of the task
     UBaseType_t priority;                       //! Priority of the task
-    TickType_t wait_tick;                       //! Tick to wait to receive message from the queue
-    TickType_t send_tick;                       //! Tick to wait to send the message to the queue
+    TickType_t wait_tick_receive;               //! Tick to wait to receive message from the queue
+    TickType_t wait_tick_send;                  //! Tick to wait to send the message to the queue
 } homie_log_mqtt_config_t;
 
 typedef struct

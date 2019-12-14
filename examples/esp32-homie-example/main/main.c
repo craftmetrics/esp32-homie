@@ -235,8 +235,8 @@ void app_main()
         .queue = log_queue,
         .topic = LOG_TOPIC,
         .priority = 5,
-        .wait_tick = 1000 / portTICK_PERIOD_MS,
-        .send_tick = 100 / portTICK_PERIOD_MS,
+        .wait_tick_receive = 1000 / portTICK_PERIOD_MS,
+        .wait_tick_send = 100 / portTICK_PERIOD_MS,
         .stack_size = configMINIMAL_STACK_SIZE * 10,
     };
     ESP_ERROR_CHECK(log_mqtt_init(&logger_config));

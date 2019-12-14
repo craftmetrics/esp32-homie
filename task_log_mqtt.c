@@ -66,7 +66,7 @@ static int logger(const char *str, va_list l)
     homie_log_message_t m;
 
     vsnprintf(m.payload, HOMIE_MAX_LOG_MESSAGE_LEN, str, l);
-    if (xQueueSend(config->queue, (void *)&m, config->send_tick) != pdTRUE) {
+    if (xQueueSend(config->queue, (void *)&m, config->wait_tick_send) != pdTRUE) {
         /* failed to send the item to the queue */
     }
     return 0;
@@ -91,7 +91,7 @@ static void log_mqtt(void *pvParameter)
     original_logger = esp_log_set_vprintf(&logger);
 
     while (1) {
-        if (xQueueReceive(config->queue, &msg, config->wait_tick)) {
+        if (xQueueReceive(config->queue, &msg, config->wait_tick_receive)) {
             msg_id = esp_mqtt_client_publish(
                     config->mqtt_client,
                     config->topic,
