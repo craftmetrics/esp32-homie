@@ -225,6 +225,8 @@ void app_main()
 
     printf("Log topic: %s\n", LOG_TOPIC);
     printf("\tmosquitto_sub -v -h ip.add.re.ss -t '%s'\n", LOG_TOPIC);
+
+#if defined(CONFIG_EXAMPLE_MQTT_LOGGER_ENABLE)
     homie_log_mqtt_config_t logger_config = {
         .mqtt_client = client,
         .mqtt_event_group = homie_event_group,
@@ -237,8 +239,6 @@ void app_main()
         .send_tick = 100 / portTICK_PERIOD_MS,
         .stack_size = configMINIMAL_STACK_SIZE * 10,
     };
-
-#if defined(CONFIG_EXAMPLE_MQTT_LOGGER_ENABLE)
     ESP_ERROR_CHECK(log_mqtt_init(&logger_config));
     ESP_LOGI(TAG, "Switching to MQTT logger");
     log_mqtt_start();
