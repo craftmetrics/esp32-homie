@@ -106,13 +106,22 @@ static void wifi_init(void)
     xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, false, true, portMAX_DELAY);
 }
 
-void my_init_handler() {
-    if (homie_publish("esp/random/$name", QOS_1, RETAINED, "Random number") <= 0) {
-        ESP_LOGE(TAG, "homie_publish(): esp/random/$name");
+void my_init_handler()
+{
+    if (homie_publish("random/$name", QOS_1, RETAINED, "Random number node") <= 0) {
+        ESP_LOGE(TAG, "homie_publish(): random/$name");
         goto fail;
     }
-    if (homie_publish("esp/random/$datatype", QOS_1, RETAINED, "integer") <= 0) {
-        ESP_LOGE(TAG, "homie_publish(): esp/random/$datatype");
+    if (homie_publish("random/$properties", QOS_1, RETAINED, "number") <= 0) {
+        ESP_LOGE(TAG, "homie_publish(): random/$properties");
+        goto fail;
+    }
+    if (homie_publish("random/number/$name", QOS_1, RETAINED, "Random number") <= 0) {
+        ESP_LOGE(TAG, "homie_publish(): random/number/$name");
+        goto fail;
+    }
+    if (homie_publish("random/number/$datatype", QOS_1, RETAINED, "integer") <= 0) {
+        ESP_LOGE(TAG, "homie_publish(): random/number/$datatype");
         goto fail;
     }
 fail:
@@ -250,7 +259,7 @@ void app_main()
     while (1) {
         last_wakeup_time = xTaskGetTickCount();
         ESP_LOGI(TAG, "Publishing random value");
-        homie_publish_int("esp/random", QOS_1, RETAINED, esp_random());
+        homie_publish_int("random/number", QOS_1, RETAINED, esp_random());
         vTaskDelayUntil(&last_wakeup_time, interval);
     }
 fail:
