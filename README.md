@@ -1,6 +1,6 @@
 # `esp32-homie`
 
-An esp-idf component for the [Homie convention](https://github.com/homieiot/convention).
+An `ESP-IDF` component for the [Homie convention](https://github.com/homieiot/convention).
 
 [![Build Status](https://travis-ci.com/trombik/esp32-homie.svg?branch=homie4)](https://travis-ci.com/trombik/esp32-homie)
 
@@ -16,19 +16,18 @@ at:
 - [x] OTA firmware updates
 - [x] Reboot by MQTT command topic
 - [x] Logging over MQTT
-- [ ] Support for extendible nodes/stats
+- [x] Support for extendable nodes
 
 ## Philosophy
 
-I believe a minimalist library is a better fit for the ESP-IDF ecosystem
+I believe a minimalist library is a better fit for the `ESP-IDF` ecosystem
 rather than a framework. I don't plan to include a captive portal, nor an
 inversion of program control. The scope of this library will be to manage the
 MQTT connection using the Homie convention, handle OTA, and little else.
 
 ## Dependencies
 
-- ESP IDF 3.2.0
-- https://github.com/tuanpmt/espmqtt
+- `ESP-IDF` 3.x or newer
 
 ## How to use
 
