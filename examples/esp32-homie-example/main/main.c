@@ -137,7 +137,6 @@ void app_main()
     esp_mqtt_client_handle_t client;
     EventGroupHandle_t homie_event_group;
     EventBits_t event_bit;
-    QueueHandle_t log_queue;
     const TickType_t interval = 3000 / portTICK_PERIOD_MS;
     TickType_t last_wakeup_time;
 
@@ -226,6 +225,7 @@ void app_main()
     ESP_LOGI(TAG, "MQTT client has connected to the broker");
 
 #if defined(CONFIG_EXAMPLE_MQTT_LOGGER_ENABLE)
+    QueueHandle_t log_queue;
     homie_log_mqtt_config_t logger_config = {
         .mqtt_client = client,
         .mqtt_event_group = homie_event_group,
