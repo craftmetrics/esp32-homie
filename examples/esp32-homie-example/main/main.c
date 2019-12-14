@@ -10,18 +10,18 @@
 #include <esp_log.h>
 
 #if defined(CONFIG_IDF_TARGET_ESP32) && defined(CONFIG_SDK_TOOLPREFIX)
+#include <esp_ota_ops.h>
 #include <esp_event.h>
 #else
 #include <esp_event_loop.h>
 #endif
 
-#if defined(CONFIG_IDF_TARGET_ESP32) && defined(CONFIG_SDK_TOOLPREFIX)
-#include <esp_ota_ops.h>
-#endif
-
 #include "homie.h"
 
 #define LOG_TOPIC CONFIG_EXAMPLE_MQTT_LOGGER_TOPIC
+#define QOS_1   (1)
+#define RETAINED (1)
+#define NOT_RETAINED (0)
 
 static const char* TAG = "EXAMPLE";
 static EventGroupHandle_t wifi_event_group;
@@ -106,9 +106,21 @@ static void wifi_init(void)
     xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, false, true, portMAX_DELAY);
 }
 
+void my_init_handler() {
+    if (homie_publish("esp/random/$name", QOS_1, RETAINED, "Random number") <= 0) {
+        ESP_LOGE(TAG, "homie_publish(): esp/random/$name");
+        goto fail;
+    }
+    if (homie_publish("esp/random/$datatype", QOS_1, RETAINED, "integer") <= 0) {
+        ESP_LOGE(TAG, "homie_publish(): esp/random/$datatype");
+        goto fail;
+    }
+fail:
+    return;
+}
+
 void app_main()
 {
-    bool logger_is_mqtt = true;
     esp_err_t err;
     char topic[HOMIE_MAX_MQTT_TOPIC_LEN];
     char mac_string[] = "aabbccddeeff";
@@ -117,6 +129,8 @@ void app_main()
     EventGroupHandle_t homie_event_group;
     EventBits_t event_bit;
     QueueHandle_t log_queue;
+    const TickType_t interval = 3000 / portTICK_PERIOD_MS;
+    TickType_t last_wakeup_time;
 
     ESP_ERROR_CHECK(nvs_flash_init());
     wifi_init();
@@ -140,6 +154,8 @@ void app_main()
         .reboot_enabled = true,
         .mqtt_handler = my_mqtt_handler,
         .event_group = NULL,
+        .node_lists = "random",
+        .init_handler = my_init_handler,
         .http_config = {
             .url = CONFIG_OTA_URL,
             .cert_pem = NULL,
@@ -232,16 +248,10 @@ void app_main()
 
     // Keep the main task around
     while (1) {
-#if defined(CONFIG_EXAMPLE_MQTT_LOGGER_ENABLE)
-        logger_is_mqtt = !logger_is_mqtt;
-        if (logger_is_mqtt) {
-            log_mqtt_start();
-        } else {
-            log_mqtt_stop();
-        }
-#endif
-
-        vTaskDelay(1000/portTICK_PERIOD_MS);
+        last_wakeup_time = xTaskGetTickCount();
+        ESP_LOGI(TAG, "Publishing random value");
+        homie_publish_int("esp/random", QOS_1, RETAINED, esp_random());
+        vTaskDelayUntil(&last_wakeup_time, interval);
     }
 fail:
     while (1) {
