@@ -605,11 +605,10 @@ static esp_err_t homie_connected()
     if (config->ota_enabled && homie_subscribe("esp/ota/set", QOS_1) < 0) {
         ESP_LOGE(TAG, "failed to subscribe esp/ota/set");
     }
-
-    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$state", QOS_1, RETAINED, "ready"));
     if (config->init_handler != NULL) {
         config->init_handler();
     }
+    FAIL_IF_LESS_THAN_OR_EQUAL_ZERO(homie_publish("$state", QOS_1, RETAINED, "ready"));
     xEventGroupClearBits(*config->event_group, HOMIE_MQTT_STATUS_UPDATE_REQUIRED);
     ESP_LOGI(TAG, "device status has been updated");
     return ESP_OK;
