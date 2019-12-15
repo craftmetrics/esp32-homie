@@ -299,6 +299,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
 static esp_mqtt_client_handle_t mqtt_app_start(void)
 {
+    char topic[HOMIE_MAX_MQTT_TOPIC_LEN];
     char lwt_topic[HOMIE_MAX_MQTT_TOPIC_LEN];
     esp_err_t err;
 
@@ -314,17 +315,21 @@ static esp_mqtt_client_handle_t mqtt_app_start(void)
     config->mqtt_config.lwt_qos = 1;
     config->mqtt_config.lwt_retain = 1;
 
-    ESP_LOGD(TAG, "MQTT URI: `%s`", config->mqtt_config.uri);
+    ESP_ERROR_CHECK(homie_mktopic(topic, "#", sizeof(topic)));
+    ESP_LOGI(TAG, "MQTT URI: `%s`", config->mqtt_config.uri);
+    ESP_LOGI(TAG, "MQTT topic: `%s`", topic);
     ESP_LOGD(TAG, "MQTT user name: `%s`", config->mqtt_config.username);
     ESP_LOGD(TAG, "MQTT client ID: `%s`", client_id);
     ESP_LOGD(TAG, "device_name: %s", config->device_name);
     ESP_LOGD(TAG, "MQTT base topic: `%s`", config->base_topic);
     ESP_LOGD(TAG, "Firmware name: `%s`", config->firmware_name);
     ESP_LOGD(TAG, "Firmware version: `%s`", config->firmware_version);
-    ESP_LOGD(TAG, "OTA enabled: %s", config->ota_enabled ? "true" : "false");
-    ESP_LOGD(TAG, "Reboot enabled: %s", config->reboot_enabled ? "true" : "false");
-    ESP_LOGD(TAG, "OTA URL: `%s`", config->http_config.url);
-    ESP_LOGD(TAG, "Stack size in byte: %d", config->mqtt_config.task_stack);
+    ESP_LOGI(TAG, "Reboot enabled: %s", config->reboot_enabled ? "true" : "false");
+    ESP_LOGI(TAG, "OTA enabled: %s", config->ota_enabled ? "true" : "false");
+    if (config->ota_enabled) {
+        ESP_LOGI(TAG, "OTA firmware URL: `%s`", config->http_config.url);
+    }
+    ESP_LOGD(TAG, "Stack size of MQTT task in byte: %d", config->mqtt_config.task_stack);
     ESP_LOGD(TAG, "node_lists: `%s`", config->node_lists);
     if ((client = esp_mqtt_client_init(&config->mqtt_config)) == NULL) {
         ESP_LOGE(TAG, "esp_mqtt_client_init() failed");
