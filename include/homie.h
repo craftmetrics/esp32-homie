@@ -56,7 +56,7 @@ typedef struct
 {
     esp_mqtt_client_config_t mqtt_config;                   //!< MQTT configuration
     char device_name[HOMIE_MAX_DEVICE_NAME_LEN];            //!< Descriptive device name
-    char base_topic[HOMIE_MAX_MQTT_BASE_TOPIC_LEN];         //!< Root topic, usually `homie`.
+    char base_topic[HOMIE_MAX_MQTT_BASE_TOPIC_LEN];         //!< Device base topic, usually `homie/unique_id`.
     char firmware_name[HOMIE_MAX_FIRMWARE_NAME_LEN];        //!< Firmware name
     char firmware_version[HOMIE_MAX_FIRMWARE_VERSION_LEN];  //!< Firmware version
     bool ota_enabled;                                       //!< Enable or disable OTA

@@ -130,6 +130,7 @@ fail:
 
 void app_main()
 {
+    int ret;
     esp_err_t err;
     char topic[HOMIE_MAX_MQTT_TOPIC_LEN];
     char mac_string[] = "aabbccddeeff";
@@ -146,7 +147,7 @@ void app_main()
     static homie_config_t homie_conf = {
         .mqtt_config = {
             .event_handle = NULL,
-            .client_id = "foo",
+            .client_id = "",
             .username = CONFIG_MQTT_USERNAME,
             .password = CONFIG_MQTT_PASSWORD,
             .uri = CONFIG_MQTT_URI,
@@ -155,7 +156,7 @@ void app_main()
             .cert_pem = NULL,
         },
         .device_name = "My Device",
-        .base_topic = "homie",
+        .base_topic = "", // set this later
         .firmware_name = "Example",
         .firmware_version = "0.0.1",
         .ota_enabled = true,
@@ -169,6 +170,13 @@ void app_main()
             .cert_pem = NULL,
         },
     };
+
+    ESP_ERROR_CHECK(homie_get_mac(mac_string, sizeof(mac_string), false));
+    ret = snprintf(homie_conf.base_topic, sizeof(homie_conf.base_topic), "homie/%s", mac_string);
+    if (ret < 0 || ret >= sizeof(homie_conf.base_topic)) {
+        ESP_LOGE(TAG, "mac_string too long");
+        goto fail;
+    }
 
     homie_event_group = xEventGroupCreate();
     if (homie_event_group == NULL) {
@@ -185,7 +193,6 @@ void app_main()
     client = homie_run();
 
     ESP_ERROR_CHECK(homie_mktopic(topic, "", sizeof(topic)));
-    ESP_ERROR_CHECK(homie_get_mac(mac_string, sizeof(mac_string), false));
     ESP_ERROR_CHECK(homie_get_mac(nice_mac_string, sizeof(nice_mac_string), true));
 
 #if defined(CONFIG_IDF_TARGET_ESP32) && defined(CONFIG_SDK_TOOLPREFIX)

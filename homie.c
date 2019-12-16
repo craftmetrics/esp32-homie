@@ -352,16 +352,12 @@ fail:
 esp_err_t homie_mktopic(char *topic, const char *subtopic, const size_t topic_size)
 {
     int ret;
-    if (!config->mqtt_config.client_id) {
-        ESP_LOGE(TAG, "client_id in mqtt_config must be set");
-        goto fail;
-    }
     if (!config->base_topic) {
-        ESP_LOGE(TAG, "base_topic in mqtt_config must be set");
+        ESP_LOGE(TAG, "base_topic must be set in homie_config");
         goto fail;
     }
-    ret = snprintf(topic, topic_size, "%s/%s/%s",
-            config->base_topic, config->mqtt_config.client_id, subtopic);
+    ret = snprintf(topic, topic_size, "%s/%s",
+            config->base_topic, subtopic);
 
     if (ret < 0 || ret >= topic_size) {
         ESP_LOGE(TAG, "homie_mktopic(): topic is too short: ret: %d, topic_size: %d",
