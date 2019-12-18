@@ -6,14 +6,16 @@
 #include <freertos/event_groups.h>
 #include <nvs_flash.h>
 #include <esp_system.h>
-#include <esp_wifi.h>
 #include <esp_log.h>
 
 #if defined(CONFIG_IDF_TARGET_ESP32) && defined(CONFIG_SDK_TOOLPREFIX)
 #include <esp_ota_ops.h>
-#include <esp_event.h>
+#endif
+
+#if defined(CONFIG_IDF_TARGET_ESP8266)
+#include "connect_esp8266.h"
 #else
-#include <esp_event_loop.h>
+#include "connect_esp32.h"
 #endif
 
 #include "homie.h"
@@ -24,8 +26,8 @@
 #define NOT_RETAINED (0)
 
 static const char* TAG = "EXAMPLE";
-static EventGroupHandle_t wifi_event_group;
-const static int CONNECTED_BIT = BIT0;
+EventGroupHandle_t wifi_event_group;
+const int CONNECTED_BIT = BIT0;
 
 static esp_err_t my_mqtt_handler(esp_mqtt_event_handle_t event)
 {
@@ -65,47 +67,6 @@ static esp_err_t my_mqtt_handler(esp_mqtt_event_handle_t event)
     err = ESP_OK;
 fail:
     return err;
-}
-
-static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
-{
-    switch (event->event_id) {
-        case SYSTEM_EVENT_STA_START:
-            esp_wifi_connect();
-            break;
-        case SYSTEM_EVENT_STA_GOT_IP:
-            xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
-            break;
-        case SYSTEM_EVENT_STA_DISCONNECTED:
-            esp_wifi_connect();
-            xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
-            break;
-        default:
-            break;
-    }
-    return ESP_OK;
-}
-
-static void wifi_init(void)
-{
-    tcpip_adapter_init();
-    wifi_event_group = xEventGroupCreate();
-    ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, NULL));
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
-    wifi_config_t wifi_config = {
-        .sta = {
-            .ssid = CONFIG_WIFI_SSID,
-            .password = CONFIG_WIFI_PASSWORD,
-        },
-    };
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
-    ESP_LOGI(TAG, "start the WIFI SSID:[%s] password:[%s]", CONFIG_WIFI_SSID, "******");
-    ESP_ERROR_CHECK(esp_wifi_start());
-    ESP_LOGI(TAG, "Waiting for wifi");
-    xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, false, true, portMAX_DELAY);
 }
 
 void my_init_handler()
@@ -149,7 +110,7 @@ void app_main()
     static homie_config_t homie_conf = {
         .mqtt_config = {
             .event_handle = NULL,
-            .client_id = "",
+            .client_id = "homie_example",
             .username = CONFIG_MQTT_USERNAME,
             .password = CONFIG_MQTT_PASSWORD,
             .uri = CONFIG_MQTT_URI,

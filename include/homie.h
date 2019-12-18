@@ -27,6 +27,7 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
+#include <freertos/queue.h>
 #include <esp_err.h>
 #include <esp_http_client.h>
 #include <mqtt_client.h>
