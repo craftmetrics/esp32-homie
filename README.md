@@ -45,6 +45,20 @@ git submodule add https://github.com/craftmetrics/esp32-homie.git components/esp
 
 Examples are under [examples](examples) directory.
 
+## Required variables in `sdkconfig`
+
+Some non-default variables must be set in `sdkconfig`.
+
+For `esp-idf` version 4.x, or master, see
+[`sdkconfig.defaults`](examples/esp32-homie-example/sdkconfig.defaults) and
+[`sdkconfig.defaults.esp32`](examples/esp32-homie-example/sdkconfig.defaults.esp32).
+
+For `esp-idf` version 3.x, see
+[`sdkconfig.defaults.esp32_v3`](examples/esp32-homie-example/sdkconfig.defaults.esp32_v3).
+
+For ESP8266 RTOS SDK, see
+[`sdkconfig.defaults.esp8266`](examples/esp32-homie-example/sdkconfig.defaults.esp8266).
+
 ## OTA Updates
 
 The OTA routine is based on
