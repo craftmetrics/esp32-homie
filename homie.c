@@ -37,6 +37,10 @@
 #include <esp_event_loop.h>
 #endif
 
+#if HELPER_TARGET_IS_ESP8266 > 0
+#include <esp_timer.h>
+#endif
+
 #include "homie.h"
 #if HELPER_TARGET_VERSION >= HELPER_TARGET_VERSION_ESP32_V4
 #include "task_ota.h"
@@ -117,7 +121,12 @@ static void handle_command(const char *topic, const char *data)
 
             /* start_ota() never return when OTA is performed and successful */
             ESP_LOGD(TAG, "Starting OTA");
+#if HELPER_TARGET_IS_ESP8266 > 0
+            ESP_LOGW(TAG, "BUG: OTA is not implemented for ESP8266 RTOS SDK");
+            err = ESP_FAIL;
+#else
             err = start_ota(config->http_config);
+#endif
             if (err != ESP_OK) {
                 ESP_LOGW(TAG, "start_ota() failed");
             }
@@ -178,10 +187,11 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 
     switch (event->event_id)
     {
+#if HELPER_TARGET_IS_ESP32 > 0
     case MQTT_EVENT_BEFORE_CONNECT:
         ESP_LOGI(TAG, "MQTT_EVENT_BEFORE_CONNECT");
         break;
-
+#endif
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
         xEventGroupSetBits(*config->event_group, HOMIE_MQTT_CONNECTED_BIT);
@@ -290,7 +300,7 @@ fail:
     return err;
 }
 
-#if HELPER_TARGET_VERSION >= HELPER_TARGET_VERSION_ESP32_V4
+#if HELPER_TARGET_IS_ESP32 > 0 && HELPER_TARGET_VERSION >= HELPER_TARGET_VERSION_ESP32_V4
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
     mqtt_event_handler_cb(event_data);
@@ -306,7 +316,7 @@ static esp_mqtt_client_handle_t mqtt_app_start(void)
     ESP_ERROR_CHECK(homie_mktopic(lwt_topic, "$state", sizeof(lwt_topic)));
     ESP_LOGD(TAG, "lwt_topic: %s", lwt_topic);
 
-#if HELPER_TARGET_VERSION < HELPER_TARGET_VERSION_ESP32_V4
+#if (HELPER_TARGET_IS_ESP32 > 0 && HELPER_TARGET_VERSION < HELPER_TARGET_VERSION_ESP32_V4) || HELPER_TARGET_IS_ESP8266 > 0
     config->mqtt_config.event_handle = mqtt_event_handler_cb;
 #endif
     /* fixed configurations */
@@ -335,7 +345,7 @@ static esp_mqtt_client_handle_t mqtt_app_start(void)
         ESP_LOGE(TAG, "esp_mqtt_client_init() failed");
         goto fail;
     }
-#if HELPER_TARGET_VERSION >= HELPER_TARGET_VERSION_ESP32_V4
+#if HELPER_TARGET_IS_ESP32 > 0 && HELPER_TARGET_VERSION >= HELPER_TARGET_VERSION_ESP32_V4
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, client);
 #endif
 

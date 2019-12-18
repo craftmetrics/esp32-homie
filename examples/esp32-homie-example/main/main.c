@@ -33,9 +33,11 @@ static esp_err_t my_mqtt_handler(esp_mqtt_event_handle_t event)
 
     switch (event->event_id)
     {
+#if HELPER_TARGET_IS_ESP32 > 0
     case MQTT_EVENT_BEFORE_CONNECT:
         ESP_LOGI(TAG, "MQTT_EVENT_BEFORE_CONNECT in my_mqtt_handler");
         break;
+#endif
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED in my_mqtt_handler");
         break;

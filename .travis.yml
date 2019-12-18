@@ -40,6 +40,10 @@ matrix:
       - PROJECT_TARGET="esp32"
       - PROJECT_SDK_BRANCH="v3.3"
       - PROJECT_BUILD_METHOD="make"
+    - env:
+      - PROJECT_TARGET="esp8266"
+      - PROJECT_SDK_BRANCH="master"
+      - PROJECT_BUILD_METHOD="make"
 
 addons:
   apt:
@@ -69,6 +73,9 @@ install:
       export PROJECT_GCC_PREFIX="xtensa-lx106-elf"
       export PROJECT_TOOLCHAIN_FILE="xtensa-lx106-elf-linux64-1.22.0-92-g8facf4c-5.2.0.tar.gz"
       export PROJECT_SDK_NAME="ESP8266_RTOS_SDK"
+      # XXX ESP8266 RTOS SDK does not support
+      # "sdkconfig.defaults.TARGET_NAME" yet.
+      export SDKCONFIG_DEFAULTS="sdkconfig.defaults.esp8266"
       ;;
     esp32)
       export PROJECT_GCC_PREFIX="xtensa-esp32-elf"
@@ -76,6 +83,9 @@ install:
       case ${PROJECT_SDK_BRANCH} in
       v3.*)
         export PROJECT_TOOLCHAIN_FILE="xtensa-esp32-elf-linux64-1.22.0-80-g6c4433a-5.2.0.tar.gz"
+        # XXX esp-idf 3.x does not support
+        # "sdkconfig.defaults.TARGET_NAME" yet.
+        export SDKCONFIG_DEFAULTS="sdkconfig.defaults.esp32_v3"
         ;;
       master)
         export PROJECT_TOOLCHAIN_FILE="xtensa-esp32-elf-gcc8_2_0-esp-2019r2-linux-amd64.tar.gz"

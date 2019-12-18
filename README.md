@@ -25,9 +25,13 @@ rather than a framework. I don't plan to include a captive portal, nor an
 inversion of program control. The scope of this library will be to manage the
 MQTT connection using the Homie convention, handle OTA, and little else.
 
-## Dependencies
+## Supported SDKs and versions
 
-- `ESP-IDF` 3.x or newer
+
+| SDK name           | Version      |
+|--------------------|--------------|
+| `ESP-IDF`          | 3.x or newer |
+| `ESP8266 RTOS SDK` | `master`     |
 
 ## How to use
 
@@ -79,6 +83,10 @@ Command topics, such as `ota` and `reboot`, are not properly rendered in
 
 Although `ESP-IDF` 3.x is supported, the example is not tested in the testing
 environment.
+
+When the SDK is ESP8266 RTOS SDK, OTA is not supported.
+
+When the SDK is ESP8266 RTOS SDK, logging over MQTT is not supported.
 
 ## License
 

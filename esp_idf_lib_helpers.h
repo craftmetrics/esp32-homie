@@ -140,6 +140,8 @@
 #pragma message(VAR_NAME_VALUE(CONFIG_SDK_TOOLPREFIX))
 #pragma message(VAR_NAME_VALUE(ESP_PLATFORM))
 #pragma message(VAR_NAME_VALUE(HELPER_TARGET_VERSION))
+#pragma message(VAR_NAME_VALUE(HELPER_TARGET_IS_ESP8266))
+#pragma message(VAR_NAME_VALUE(HELPER_TARGET_IS_ESP32))
 #endif
 
 #endif // !defined(__ESP_IDF_LIB_HELPERS__H__)
