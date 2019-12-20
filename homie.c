@@ -42,10 +42,16 @@
 #endif
 
 #include "homie.h"
+#if HELPER_TARGET_IS_ESP32
 #if HELPER_TARGET_VERSION >= HELPER_TARGET_VERSION_ESP32_V4
 #include "task_ota.h"
 #else
 #include "task_ota_3_2.h"
+#endif
+#endif
+
+#if HELPER_TARGET_IS_ESP8266
+#include "task_ota_8266.h"
 #endif
 
 #define QOS_0 (0)
@@ -121,12 +127,7 @@ static void handle_command(const char *topic, const char *data)
 
             /* start_ota() never return when OTA is performed and successful */
             ESP_LOGD(TAG, "Starting OTA");
-#if HELPER_TARGET_IS_ESP8266 > 0
-            ESP_LOGW(TAG, "BUG: OTA is not implemented for ESP8266 RTOS SDK");
-            err = ESP_FAIL;
-#else
             err = start_ota(config->http_config);
-#endif
             if (err != ESP_OK) {
                 ESP_LOGW(TAG, "start_ota() failed");
             }

@@ -33,6 +33,9 @@ MQTT connection using the Homie convention, handle OTA, and little else.
 | `ESP-IDF`          | 3.x or newer |
 | `ESP8266 RTOS SDK` | `master`     |
 
+ESP8266 RTOS SDK support is not stable, mostly due to the fact that the SDK is
+often far behind `esp-idf`. See "KNOWN BUGS".
+
 ## How to use
 
 Clone this component to [ESP-IDF](https://github.com/espressif/esp-idf) project (as submodule):
@@ -90,6 +93,11 @@ section in ["Miscellaneous System APIs"](https://docs.espressif.com/projects/esp
 
 Accepted version string must be in the form of [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+### ESP8266 RTOS SDK
+
+* Download a firmware at the location specified in `http_config`
+* Start the OTA
+
 ## KNOWN BUGS
 
 Command topics, such as `ota` and `reboot`, are not properly rendered in
@@ -98,9 +106,11 @@ Command topics, such as `ota` and `reboot`, are not properly rendered in
 Although `ESP-IDF` 3.x is supported, the example is not tested in the testing
 environment.
 
-When the SDK is ESP8266 RTOS SDK, OTA is not supported.
-
 When the SDK is ESP8266 RTOS SDK, logging over MQTT is not supported.
+
+When the SDK is ESP8266 RTOS SDK, MQTT connections often get lost because
+`esp-mqtt` in the SDK is not thread-safe
+([fix](https://github.com/espressif/esp-mqtt/commit/752953dc3be007cca4255b66a35d3087e61f6a54)).
 
 ## License
 

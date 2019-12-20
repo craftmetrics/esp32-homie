@@ -7,6 +7,8 @@ ifndef CONFIG_IDF_TARGET_ESP8266
 COMPONENT_OBJS += \
 	task_ota_3_2.o \
 	task_log_mqtt.o
+else
+COMPONENT_OBJS += task_ota_8266.o
 endif
 
 COMPONENT_SRCDIRS := . vendors/semver.c
