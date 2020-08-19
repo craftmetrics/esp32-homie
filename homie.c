@@ -1,10 +1,10 @@
 #include <stdarg.h>
 
+#include "esp_event_loop.h"
 #include "esp_log.h"
+#include "esp_ota_ops.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
-#include "esp_event_loop.h"
-#include "esp_ota_ops.h"
 #include "freertos/event_groups.h"
 
 #include "homie.h"
@@ -127,7 +127,7 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 
     case MQTT_EVENT_PUBLISHED:
         // Disabled to avoid triggering circular events with remote logging
-        //ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+        // ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
         break;
 
     case MQTT_EVENT_DATA:
@@ -182,7 +182,13 @@ void homie_subscribe(const char *subtopic)
 
 void homie_publish(const char *subtopic, int qos, int retain, const char *payload)
 {
-    //int msg_id;
+    if (config == NULL)
+    {
+        ESP_LOGI(TAG, "Attempted to publish before homie connected");
+        return;
+    }
+
+    // int msg_id;
     char topic[HOMIE_MAX_TOPIC_LEN];
     homie_mktopic(topic, subtopic);
 
@@ -231,13 +237,8 @@ static void _get_ip(char *ip_string)
     tcpip_adapter_ip_info_t ip;
     tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip);
 
-    sprintf(
-        ip_string,
-        "%u.%u.%u.%u",
-        (ip.ip.addr & 0x000000ff),
-        (ip.ip.addr & 0x0000ff00) >> 8,
-        (ip.ip.addr & 0x00ff0000) >> 16,
-        (ip.ip.addr & 0xff000000) >> 24);
+    sprintf(ip_string, "%u.%u.%u.%u", (ip.ip.addr & 0x000000ff), (ip.ip.addr & 0x0000ff00) >> 8,
+            (ip.ip.addr & 0x00ff0000) >> 16, (ip.ip.addr & 0xff000000) >> 24);
 }
 
 static void _get_mac(char *mac_string, bool sep)
