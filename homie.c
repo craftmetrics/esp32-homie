@@ -1,6 +1,6 @@
 #include <stdarg.h>
 
-#include "esp_event_loop.h"
+#include "esp_event.h"
 #include "esp_log.h"
 #include "esp_ota_ops.h"
 #include "esp_system.h"
@@ -142,7 +142,12 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     case MQTT_EVENT_ANY:
         ESP_LOGI(TAG, "MQTT_EVENT_ANY");
         break;
+
+    case MQTT_EVENT_DELETED:
+        ESP_LOGI(TAG, "MQTT_EVENT_DELETED");
+        break;
     }
+
     return ESP_OK;
 }
 
