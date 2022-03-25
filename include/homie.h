@@ -34,10 +34,10 @@ typedef struct
 
 void homie_init(homie_config_t *config);
 void homie_subscribe(const char *subtopic);
-void homie_publish(const char *subtopic, int qos, int retain, const char *payload);
-void homie_publishf(const char *subtopic, int qos, int retain, const char *format, ...);
-void homie_publish_int(const char *subtopic, int qos, int retain, const int payload);
-void homie_publish_bool(const char *subtopic, int qos, int retain, const bool payload);
+int homie_publish(const char *subtopic, int qos, int retain, const char *payload, int len);
+int homie_publishf(const char *subtopic, int qos, int retain, const char *format, ...);
+int homie_publish_int(const char *subtopic, int qos, int retain, const int payload);
+int homie_publish_bool(const char *subtopic, int qos, int retain, const bool payload);
 void homie_mktopic(char *topic, const char *subtopic);
 
 #endif // CM_ESP32_HOMIE_H

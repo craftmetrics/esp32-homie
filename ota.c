@@ -8,10 +8,10 @@
 #include "freertos/task.h"
 #include "math.h"
 
-#include "esp_wifi.h"
-#include "esp_ota_ops.h"
-#include "esp_log.h"
 #include "esp_https_ota.h"
+#include "esp_log.h"
+#include "esp_ota_ops.h"
+#include "esp_wifi.h"
 #include "homie.h"
 
 #define TAG "HOMIE_OTA"
@@ -38,11 +38,9 @@ static void ota_task(void *pvParameter)
     if (config->status_handler)
         config->status_handler(0);
 
-    homie_publish("$implementation/ota/status", 1, 0, "202 ota begin");
+    homie_publish("$implementation/ota/status", 1, 0, "202 ota begin", 0);
 
-    esp_http_client_config_t ota_config = {
-        .url = config->url,
-        .cert_pem = config->cert_pem};
+    esp_http_client_config_t ota_config = {.url = config->url, .cert_pem = config->cert_pem};
     esp_err_t ret = esp_https_ota(&ota_config);
     if (ret == ESP_OK)
     {
@@ -51,7 +49,7 @@ static void ota_task(void *pvParameter)
 
         ESP_LOGI(TAG, "OTA Update Complete - rebooting");
         // Send status message to indicate that OTA is complete
-        homie_publish("$implementation/ota/status", 1, 0, "200");
+        homie_publish("$implementation/ota/status", 1, 0, "200", 0);
         vTaskDelay(3000 / portTICK_PERIOD_MS);
         esp_restart();
     }
@@ -78,7 +76,7 @@ void ota_init(char *url, const char *cert_pem, void (*status_handler)(int))
     if ((configured == NULL) || (configured == NULL))
     {
         ESP_LOGE(TAG, "OTA partitions not configured");
-        homie_publish("$implementation/ota/status", 1, 0, "500 no ota partitions");
+        homie_publish("$implementation/ota/status", 1, 0, "500 no ota partitions", 0);
         free(url);
         return;
     }
@@ -88,16 +86,17 @@ void ota_init(char *url, const char *cert_pem, void (*status_handler)(int))
     {
         ESP_LOGW(TAG, "Configured OTA boot partition at offset 0x%08x, but running from offset 0x%08x",
                  configured->address, running->address);
-        ESP_LOGW(TAG, "(This can happen if either the OTA boot data or preferred boot image become corrupted somehow.)");
+        ESP_LOGW(TAG,
+                 "(This can happen if either the OTA boot data or preferred boot image become corrupted somehow.)");
     }
-    ESP_LOGI(TAG, "Running partition type %d subtype %d (offset 0x%08x)",
-             running->type, running->subtype, running->address);
+    ESP_LOGI(TAG, "Running partition type %d subtype %d (offset 0x%08x)", running->type, running->subtype,
+             running->address);
 
     // Ensure we can't start multiple
     if (config != NULL)
     {
         ESP_LOGE(TAG, "OTA already initiated (0x%x)", (unsigned int)config);
-        homie_publish("$implementation/ota/status", 1, 0, "500 ota already initiated");
+        homie_publish("$implementation/ota/status", 1, 0, "500 ota already initiated", 0);
         free(url);
         return;
     }
