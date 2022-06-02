@@ -29,6 +29,7 @@ typedef struct
     const char *cert_pem;
     void (*msg_handler)(char *, char *);
     void (*connected_handler)();
+    void (*disconnected_handler)();
     void (*ota_status_handler)(int);
 } homie_config_t;
 
