@@ -8,6 +8,7 @@
 #include "freertos/event_groups.h"
 
 #include "homie.h"
+#include "mqtt_client.h"
 #include "ota.h"
 
 static const char *TAG = "HOMIE";
@@ -203,7 +204,7 @@ int homie_publish(const char *subtopic, int qos, int retain, const char *payload
     char topic[HOMIE_MAX_TOPIC_LEN];
     homie_mktopic(topic, subtopic);
 
-    return esp_mqtt_client_publish(client, topic, payload, len, qos, retain);
+    return esp_mqtt_client_enqueue(client, topic, payload, len, qos, retain, true);
 }
 
 int homie_publishf(const char *subtopic, int qos, int retain, const char *format, ...)
