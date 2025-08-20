@@ -1,10 +1,10 @@
 #include <stdarg.h>
 
-#include "esp_event.h"
 #include "esp_log.h"
 #include "esp_ota_ops.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
+#include "esp_mac.h"
 #include "freertos/event_groups.h"
 
 #include "homie.h"
@@ -99,9 +99,11 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     }
 }
 
-static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
+void mqtt_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
-    switch (event->event_id)
+    esp_mqtt_event_t * event = (esp_mqtt_event_t*)event_data;
+
+    switch (event_id)
     {
     case MQTT_EVENT_BEFORE_CONNECT:
         ESP_LOGI(TAG, "MQTT_EVENT_BEFORE_CONNECT");
@@ -149,9 +151,12 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     case MQTT_EVENT_DELETED:
         ESP_LOGI(TAG, "MQTT_EVENT_DELETED");
         break;
-    }
 
-    return ESP_OK;
+    case MQTT_USER_EVENT:
+        ESP_LOGI(TAG, "MQTT_USER_EVENT");
+        break;
+
+    }
 }
 
 static void mqtt_app_start(void)
@@ -159,21 +164,20 @@ static void mqtt_app_start(void)
     char *lwt_topic = calloc(1, HOMIE_MAX_TOPIC_LEN);
     homie_mktopic(lwt_topic, "$online");
 
-    esp_mqtt_client_config_t mqtt_cfg = {
-        .client_id = config->client_id,
-        .uri = config->mqtt_uri,
-        .username = config->mqtt_username,
-        .password = config->mqtt_password,
-
-        .event_handle = mqtt_event_handler,
-        .lwt_msg = "false",
-        .lwt_retain = 1,
-        .lwt_topic = lwt_topic,
-        .keepalive = 15,
-        .cert_pem = config->cert_pem,
+    const esp_mqtt_client_config_t mqtt_cfg = {
+        .broker.address.uri = config->mqtt_uri,
+        .broker.verification.certificate = config->cert_pem,
+        .credentials.username = config->mqtt_username,
+        .credentials.client_id = config->client_id,
+        .credentials.authentication.password = config->mqtt_password,
+        .session.last_will.msg = "false",
+        .session.last_will.retain = 1,
+        .session.last_will.topic = lwt_topic,
+        .session.keepalive = 15,
     };
 
     client = esp_mqtt_client_init(&mqtt_cfg);
+    esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, client);
     esp_mqtt_client_start(client);
 }
 
@@ -246,11 +250,16 @@ static int8_t _get_wifi_rssi()
 
 static void _get_ip(char *ip_string)
 {
-    tcpip_adapter_ip_info_t ip;
-    tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip);
+    esp_netif_ip_info_t ip;
+    esp_netif_get_ip_info(esp_netif_get_default_netif(), &ip);
 
-    sprintf(ip_string, "%u.%u.%u.%u", (ip.ip.addr & 0x000000ff), (ip.ip.addr & 0x0000ff00) >> 8,
-            (ip.ip.addr & 0x00ff0000) >> 16, (ip.ip.addr & 0xff000000) >> 24);
+    sprintf(ip_string, "%u.%u.%u.%u",
+        (uint8_t)(ip.ip.addr & 0x000000ff),
+        (uint8_t)((ip.ip.addr & 0x0000ff00) >> 8),
+        (uint8_t)((ip.ip.addr & 0x00ff0000) >> 16),
+        (uint8_t)((ip.ip.addr & 0xff000000) >> 24)
+    );
+
 }
 
 static void _get_mac(char *mac_string, bool sep)

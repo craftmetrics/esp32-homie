@@ -40,7 +40,8 @@ static void ota_task(void *pvParameter)
 
     homie_publish("$implementation/ota/status", 1, 0, "202 ota begin", 0);
 
-    esp_http_client_config_t ota_config = {.url = config->url, .cert_pem = config->cert_pem};
+    esp_http_client_config_t ota_http_config = {.url = config->url, .cert_pem = config->cert_pem};
+    esp_https_ota_config_t ota_config = {.http_config = &ota_http_config};
     esp_err_t ret = esp_https_ota(&ota_config);
     if (ret == ESP_OK)
     {
