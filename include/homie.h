@@ -35,7 +35,7 @@ typedef struct
 
 void homie_init(homie_config_t *config);
 void homie_subscribe(const char *subtopic);
-int homie_publish(const char *subtopic, int qos, int retain, const char *payload, int len);
+int homie_publish(const char *subtopic, int qos, int retain, const char *payload, int len, bool queue);
 int homie_publishf(const char *subtopic, int qos, int retain, const char *format, ...);
 int homie_publish_int(const char *subtopic, int qos, int retain, const int payload);
 int homie_publish_bool(const char *subtopic, int qos, int retain, const bool payload);

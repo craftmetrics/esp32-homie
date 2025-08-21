@@ -38,7 +38,7 @@ static void ota_task(void *pvParameter)
     if (config->status_handler)
         config->status_handler(0);
 
-    homie_publish("$implementation/ota/status", 1, 0, "202 ota begin", 0);
+    homie_publish("$implementation/ota/status", 1, 0, "202 ota begin", 0, true);
 
     esp_http_client_config_t ota_http_config = {.url = config->url, .cert_pem = config->cert_pem};
     esp_https_ota_config_t ota_config = {.http_config = &ota_http_config};
@@ -50,7 +50,7 @@ static void ota_task(void *pvParameter)
 
         ESP_LOGI(TAG, "OTA Update Complete - rebooting");
         // Send status message to indicate that OTA is complete
-        homie_publish("$implementation/ota/status", 1, 0, "200", 0);
+        homie_publish("$implementation/ota/status", 1, 0, "200", 0, true);
         vTaskDelay(3000 / portTICK_PERIOD_MS);
         esp_restart();
     }
@@ -77,7 +77,7 @@ void ota_init(char *url, const char *cert_pem, void (*status_handler)(int))
     if ((configured == NULL) || (configured == NULL))
     {
         ESP_LOGE(TAG, "OTA partitions not configured");
-        homie_publish("$implementation/ota/status", 1, 0, "500 no ota partitions", 0);
+        homie_publish("$implementation/ota/status", 1, 0, "500 no ota partitions", 0, true);
         free(url);
         return;
     }
@@ -97,7 +97,7 @@ void ota_init(char *url, const char *cert_pem, void (*status_handler)(int))
     if (config != NULL)
     {
         ESP_LOGE(TAG, "OTA already initiated (0x%x)", (unsigned int)config);
-        homie_publish("$implementation/ota/status", 1, 0, "500 ota already initiated", 0);
+        homie_publish("$implementation/ota/status", 1, 0, "500 ota already initiated", 0, true);
         free(url);
         return;
     }

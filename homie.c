@@ -30,7 +30,7 @@ static int _homie_logger(const char *str, va_list l)
     char buf[REMOTE_LOGGING_MAX_PAYLOAD_LEN];
 
     vsnprintf(buf, REMOTE_LOGGING_MAX_PAYLOAD_LEN, str, l);
-    homie_publish("log", 1, 0, buf, 0);
+    homie_publish("log", 1, 0, buf, 0, true);
     return vprintf(str, l);
 }
 
@@ -196,7 +196,7 @@ void homie_subscribe(const char *subtopic)
     ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 }
 
-int homie_publish(const char *subtopic, int qos, int retain, const char *payload, int len)
+int homie_publish(const char *subtopic, int qos, int retain, const char *payload, int len, bool queue)
 {
     if (config == NULL)
     {
@@ -208,7 +208,10 @@ int homie_publish(const char *subtopic, int qos, int retain, const char *payload
     char topic[HOMIE_MAX_TOPIC_LEN];
     homie_mktopic(topic, subtopic);
 
-    return esp_mqtt_client_enqueue(client, topic, payload, len, qos, retain, true);
+    if (queue)
+        return esp_mqtt_client_enqueue(client, topic, payload, len, qos, retain, true);
+    else
+        return esp_mqtt_client_publish(client, topic, payload, len, qos, retain);
 }
 
 int homie_publishf(const char *subtopic, int qos, int retain, const char *format, ...)
@@ -218,19 +221,19 @@ int homie_publishf(const char *subtopic, int qos, int retain, const char *format
     va_start(argptr, format);
     vsnprintf(payload_string, 64, format, argptr);
     va_end(argptr);
-    return homie_publish(subtopic, qos, retain, payload_string, 0);
+    return homie_publish(subtopic, qos, retain, payload_string, 0, true);
 }
 
 int homie_publish_int(const char *subtopic, int qos, int retain, int payload)
 {
     char payload_string[16];
     snprintf(payload_string, 16, "%d", payload);
-    return homie_publish(subtopic, qos, retain, payload_string, 0);
+    return homie_publish(subtopic, qos, retain, payload_string, 0, true);
 }
 
 int homie_publish_bool(const char *subtopic, int qos, int retain, bool payload)
 {
-    return homie_publish(subtopic, qos, retain, payload ? "true" : "false", 0);
+    return homie_publish(subtopic, qos, retain, payload ? "true" : "false", 0, true);
 }
 
 static int _clamp(int n, int lower, int upper)
@@ -283,19 +286,19 @@ static void homie_connected()
     _get_mac(mac_address, true);
     _get_ip(ip_address);
 
-    homie_publish("$homie", 0, 1, "2.0.1", 0);
-    homie_publish("$online", 0, 1, "true", 0);
-    homie_publish("$name", 0, 1, config->device_name, 0);
-    homie_publish("$localip", 0, 1, ip_address, 0);
-    homie_publish("$mac", 0, 1, mac_address, 0);
-    homie_publish("$fw/name", 0, 1, config->firmware_name, 0);
-    homie_publish("$fw/version", 0, 1, config->firmware_version, 0);
-    homie_publish("$nodes", 0, 1, "", 0); // FIXME: needs to be extendible
-    homie_publish("$implementation", 0, 1, "esp32-idf", 0);
-    homie_publish("$implementation/version", 0, 1, "dev", 0);
+    homie_publish("$homie", 0, 1, "2.0.1", 0, true);
+    homie_publish("$online", 0, 1, "true", 0, true);
+    homie_publish("$name", 0, 1, config->device_name, 0, true);
+    homie_publish("$localip", 0, 1, ip_address, 0, true);
+    homie_publish("$mac", 0, 1, mac_address, 0, true);
+    homie_publish("$fw/name", 0, 1, config->firmware_name, 0, true);
+    homie_publish("$fw/version", 0, 1, config->firmware_version, 0, true);
+    homie_publish("$nodes", 0, 1, "", 0, true); // FIXME: needs to be extendible
+    homie_publish("$implementation", 0, 1, "esp32-idf", 0, true);
+    homie_publish("$implementation/version", 0, 1, "dev", 0, true);
 
-    homie_publish("$stats", 0, 1, "uptime,rssi,signal,freeheap", 0); // FIXME: needs to be extendible
-    homie_publish("$stats/interval", 0, 1, "30", 0);
+    homie_publish("$stats", 0, 1, "uptime,rssi,signal,freeheap", 0, true); // FIXME: needs to be extendible
+    homie_publish("$stats/interval", 0, 1, "30", 0, true);
     homie_publish_bool("$implementation/ota/enabled", 0, 1, config->ota_enabled);
 
     const esp_partition_t *running_partition = esp_ota_get_running_partition();
