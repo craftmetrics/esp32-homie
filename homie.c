@@ -5,6 +5,7 @@
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_mac.h"
+#include "esp_timer.h"
 #include "freertos/event_groups.h"
 
 #include "homie.h"
