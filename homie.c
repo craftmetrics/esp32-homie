@@ -46,6 +46,10 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     if ((strncmp(topic, event->topic, event->topic_len) == 0) && (strncmp("true", event->data, event->data_len) == 0))
     {
         ESP_LOGI(TAG, "Rebooting...");
+
+        // Ensure MQTT logging is disabled, otherwise reboot may hang
+        esp_log_set_vprintf(vprintf);
+
         esp_restart();
         return;
     }
