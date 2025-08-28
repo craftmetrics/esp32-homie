@@ -176,6 +176,7 @@ static void mqtt_app_start(void)
         .credentials.client_id = config->client_id,
         .credentials.authentication.password = config->mqtt_password,
         .session.last_will.msg = "false",
+        .session.last_will.qos = 1,
         .session.last_will.retain = 1,
         .session.last_will.topic = lwt_topic,
         .session.keepalive = 15,
@@ -291,39 +292,33 @@ static void homie_connected()
     _get_mac(mac_address, true);
     _get_ip(ip_address);
 
-    homie_publish("$homie", 0, 1, "2.0.1", 0, true);
-    homie_publish("$online", 0, 1, "true", 0, true);
-    homie_publish("$name", 0, 1, config->device_name, 0, true);
-    homie_publish("$localip", 0, 1, ip_address, 0, true);
-    homie_publish("$mac", 0, 1, mac_address, 0, true);
-    homie_publish("$fw/name", 0, 1, config->firmware_name, 0, true);
-    homie_publish("$fw/version", 0, 1, config->firmware_version, 0, true);
-    homie_publish("$nodes", 0, 1, "", 0, true); // FIXME: needs to be extendible
-    homie_publish("$implementation", 0, 1, "esp32-idf", 0, true);
-    homie_publish("$implementation/version", 0, 1, "dev", 0, true);
+    homie_publish("$online", 1, 1, "true", 0, true);
+    homie_publish("$name", 1, 1, config->device_name, 0, true);
+    homie_publish("$localip", 1, 1, ip_address, 0, true);
+    homie_publish("$mac", 1, 1, mac_address, 0, true);
+    homie_publish("$fw/name", 1, 1, config->firmware_name, 0, true);
+    homie_publish("$fw/version", 1, 1, config->firmware_version, 0, true);
 
-    homie_publish("$stats", 0, 1, "uptime,rssi,signal,freeheap", 0, true); // FIXME: needs to be extendible
-    homie_publish("$stats/interval", 0, 1, "30", 0, true);
-    homie_publish_bool("$implementation/ota/enabled", 0, 1, config->ota_enabled);
+    homie_publish_bool("$implementation/ota/enabled", 1, 0, config->ota_enabled);
 
     const esp_partition_t *running_partition = esp_ota_get_running_partition();
     if (running_partition != NULL)
     {
-        homie_publishf("$implementation/ota/running", 0, 1, "0x%08x", running_partition->address);
+        homie_publishf("$implementation/ota/running", 1, 0, "0x%08x", running_partition->address);
     }
     else
     {
-        homie_publishf("$implementation/ota/running", 0, 1, "NULL");
+        homie_publishf("$implementation/ota/running", 1, 0, "NULL");
     }
 
     const esp_partition_t *boot_partition = esp_ota_get_boot_partition();
     if (boot_partition != NULL)
     {
-        homie_publishf("$implementation/ota/boot", 0, 1, "0x%08x", boot_partition->address);
+        homie_publishf("$implementation/ota/boot", 1, 0, "0x%08x", boot_partition->address);
     }
     else
     {
-        homie_publishf("$implementation/ota/boot", 0, 1, "NULL");
+        homie_publishf("$implementation/ota/boot", 1, 0, "NULL");
     }
 
     homie_subscribe("$implementation/reboot");
