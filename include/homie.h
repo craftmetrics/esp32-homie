@@ -18,6 +18,7 @@
 typedef struct
 {
     char mqtt_uri[HOMIE_MAX_MQTT_URI_LEN];
+    esp_transport_handle_t transport;
     char mqtt_username[HOMIE_MAX_MQTT_USERNAME_LEN];
     char mqtt_password[HOMIE_MAX_MQTT_PASSWORD_LEN];
     char client_id[HOMIE_MAX_CLIENT_ID_LEN];

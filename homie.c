@@ -180,6 +180,7 @@ static void mqtt_app_start(void)
         .session.last_will.retain = 1,
         .session.last_will.topic = lwt_topic,
         .session.keepalive = 15,
+        .network.transport = config->transport,
     };
 
     client = esp_mqtt_client_init(&mqtt_cfg);
