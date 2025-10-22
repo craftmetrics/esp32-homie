@@ -35,6 +35,11 @@ static int _homie_logger(const char *str, va_list l)
     return vprintf(str, l);
 }
 
+// Ensure MQTT logging is disabled, otherwise reboot may hang
+static void _reset_logger(void) {
+    esp_log_set_vprintf(vprintf);
+}
+
 static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
 {
     printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
@@ -46,10 +51,6 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     if ((strncmp(topic, event->topic, event->topic_len) == 0) && (strncmp("true", event->data, event->data_len) == 0))
     {
         ESP_LOGI(TAG, "Rebooting...");
-
-        // Ensure MQTT logging is disabled, otherwise reboot may hang
-        esp_log_set_vprintf(vprintf);
-
         esp_restart();
         return;
     }
@@ -61,6 +62,7 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
         if (strncmp("true", event->data, event->data_len) == 0)
         {
             ESP_LOGI(TAG, "Enable remote logging");
+            esp_register_shutdown_handler(_reset_logger);
             esp_log_set_vprintf(_homie_logger);
             ESP_LOGI(TAG, "Remote logging enabled");
         }
@@ -68,6 +70,7 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
         {
             ESP_LOGI(TAG, "Disable remote logging");
             esp_log_set_vprintf(vprintf);
+            esp_unregister_shutdown_handler(_reset_logger);
             ESP_LOGI(TAG, "Remote logging disabled");
         }
         return;
