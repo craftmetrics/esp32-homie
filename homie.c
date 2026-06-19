@@ -16,6 +16,8 @@ static const char *TAG = "HOMIE";
 
 static esp_mqtt_client_handle_t client;
 static homie_config_t *config;
+static char lwt_topic[HOMIE_MAX_TOPIC_LEN];
+static TaskHandle_t homie_task_handle;
 
 static void homie_connected();
 
@@ -80,7 +82,7 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     homie_mktopic(topic, "$implementation/ota/url");
     if (_starts_with(topic, event->topic, event->topic_len))
     {
-        char *url = calloc(1, event->data_len + 1);
+        char *url = (char *)calloc(1, event->data_len + 1);
         strncpy(url, event->data, event->data_len);
         url[event->data_len] = '\0';
         ota_init(url, config->cert_pem, config->ota_status_handler);
@@ -92,11 +94,11 @@ static void homie_handle_mqtt_event(esp_mqtt_event_handle_t event)
     if (config->msg_handler)
     {
         int subtopic_len = event->topic_len - strlen(topic);
-        char *subtopic = calloc(1, subtopic_len + 1);
+        char *subtopic = (char *)calloc(1, subtopic_len + 1);
         strncpy(subtopic, event->topic + strlen(topic), subtopic_len);
         subtopic[subtopic_len] = '\0';
 
-        char *payload = calloc(1, event->data_len + 1);
+        char *payload = (char *)calloc(1, event->data_len + 1);
         strncpy(payload, event->data, event->data_len);
         payload[event->data_len] = '\0';
 
@@ -165,29 +167,6 @@ void mqtt_event_handler(void *event_handler_arg, esp_event_base_t event_base, in
         break;
 
     }
-}
-
-static void mqtt_app_start(void)
-{
-    char *lwt_topic = calloc(1, HOMIE_MAX_TOPIC_LEN);
-    homie_mktopic(lwt_topic, "$online");
-
-    const esp_mqtt_client_config_t mqtt_cfg = {
-        .broker.address.uri = config->mqtt_uri,
-        .broker.verification.certificate = config->cert_pem,
-        .credentials.username = config->mqtt_username,
-        .credentials.client_id = config->client_id,
-        .credentials.authentication.password = config->mqtt_password,
-        .session.last_will.msg = "false",
-        .session.last_will.qos = 1,
-        .session.last_will.retain = 1,
-        .session.last_will.topic = lwt_topic,
-        .session.keepalive = 15,
-    };
-
-    client = esp_mqtt_client_init(&mqtt_cfg);
-    esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, client);
-    esp_mqtt_client_start(client);
 }
 
 void homie_mktopic(char *topic, const char *subtopic)
@@ -356,6 +335,38 @@ void homie_init(homie_config_t *passed_config)
     if (!config->client_id[0])
         _get_mac(config->client_id, false);
 
-    mqtt_app_start();
-    xTaskCreate(&homie_task, "homie_task", 8192, NULL, 5, NULL);
+    homie_mktopic(lwt_topic, "$online");
+
+    const esp_mqtt_client_config_t mqtt_cfg = {
+        .broker.address.uri = config->mqtt_uri,
+        .broker.verification.certificate = config->cert_pem,
+        .credentials.username = config->mqtt_username,
+        .credentials.client_id = config->client_id,
+        .credentials.authentication.password = config->mqtt_password,
+        .session.last_will.msg = "false",
+        .session.last_will.qos = 1,
+        .session.last_will.retain = 1,
+        .session.last_will.topic = lwt_topic,
+        .session.keepalive = 15,
+    };
+
+    client = esp_mqtt_client_init(&mqtt_cfg);
+    esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, client);
+    esp_mqtt_client_start(client);
+
+    xTaskCreate(&homie_task, "homie_task", 8192, NULL, 5, &homie_task_handle);
+}
+
+void homie_deinit(void)
+{
+    if (client == NULL) {
+        ESP_LOGE(TAG, "Could not deinit because client is NULL");
+        return;
+    }
+
+    ESP_LOGI(TAG, "Stopping MQTT client");
+    vTaskDelete(homie_task_handle);
+    esp_mqtt_client_stop(client);
+    esp_mqtt_client_destroy(client);
+    client = NULL;
 }

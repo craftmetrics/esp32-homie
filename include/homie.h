@@ -1,8 +1,6 @@
 #ifndef CM_ESP32_HOMIE_H
 #define CM_ESP32_HOMIE_H
 
-#include "mqtt_client.h"
-
 #define HOMIE_MAX_TOPIC_LEN (64)
 
 #define HOMIE_MAX_MQTT_URI_LEN (64)
@@ -34,6 +32,7 @@ typedef struct
 } homie_config_t;
 
 void homie_init(homie_config_t *config);
+void homie_deinit(void);
 void homie_subscribe(const char *subtopic);
 int homie_publish(const char *subtopic, int qos, int retain, const char *payload, int len, bool queue);
 int homie_publishf(const char *subtopic, int qos, int retain, const char *format, ...);

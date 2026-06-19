@@ -4,7 +4,7 @@
  * by Tuanpmt
  */
 
-#include "freertos/FreeRTOS.h"
+#include "freertos/FreeRTOS.h" // IWYU pragma: keep for freertos/...
 #include "freertos/task.h"
 #include "math.h"
 
