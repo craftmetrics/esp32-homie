@@ -348,6 +348,8 @@ void homie_init(homie_config_t *passed_config)
         .session.last_will.retain = 1,
         .session.last_will.topic = lwt_topic,
         .session.keepalive = 15,
+        .network.reconnect_timeout_ms = 1000,
+
     };
 
     client = esp_mqtt_client_init(&mqtt_cfg);
